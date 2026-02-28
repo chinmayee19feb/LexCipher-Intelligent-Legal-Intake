@@ -1,5 +1,7 @@
+import os
 import json
 import logging
+import boto3
 import anthropic
 from prompt import (
     CLASSIFICATION_SYSTEM_PROMPT,
@@ -10,7 +12,23 @@ from prompt import (
 
 logger = logging.getLogger(__name__)
 
-client = anthropic.Anthropic()
+def _get_api_key() -> str:
+    # First try env var (local/test)
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if key:
+        return key
+    # Load from SSM
+    try:
+        ssm = boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+        resp = ssm.get_parameter(Name="/lexcipher/anthropic/api_key", WithDecryption=True)
+        key = resp["Parameter"]["Value"]
+        os.environ["ANTHROPIC_API_KEY"] = key  # cache for subsequent calls
+        return key
+    except Exception as e:
+        logger.error(f"Failed to load Anthropic API key from SSM: {e}")
+        raise
+
+client = anthropic.Anthropic(api_key=_get_api_key())
 MODEL  = "claude-haiku-4-5"
 
 

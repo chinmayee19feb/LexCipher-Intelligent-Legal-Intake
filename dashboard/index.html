@@ -6,7 +6,6 @@
 <title>Richards & Law — Operations Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -358,7 +357,7 @@ const API      = window.INTAKES_API_URL || 'https://b1o6dj4cm4.execute-api.us-ea
 const CLIO_API = window.CLIO_API_URL    || 'https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod/clio';
 
 let ALL = [], currentView = 'classic', advView = 'overview', selectedId = null;
-let clFilter_ = 'all', barChart = null, donutChart = null;
+let clFilter_ = 'all';
 
 const DEMO = [
   {intake_id:'INT-001',client_name:'Guillermo Reyes',client_email:'g.reyes@email.com',client_phone:'+1 (973) 555-0142',submitted_at:new Date(Date.now()-3*3600000).toISOString(),status:'new',case_type:'PI — Vehicle Accident',urgency:'critical',viability_score:8,sol_flag:true,has_police_report:true,clio_synced:false,description:'Two-impact collision on Flatbush Avenue. Neck and back injuries. Commercial vehicle involved.',key_facts:['Two-impact collision — reckless driving pattern','Police report MV-2018-078-002001 confirms fault','SOL expires December 6, 2026 — urgent filing needed','Commercial vehicle — employer liability possible'],recommended_action:'Accept immediately. High viability. SOL within 10 months.',extracted:{accident_date:'2018-12-06',accident_location:'Flatbush Ave at Plaza Street East, Brooklyn, NY',police_report_number:'MV-2018-078-002001',client_vehicle_make_model:'2010 Freightliner Box Truck',opposing_party_name:'Lionel Francois',opposing_party_vehicle:'2011 Ford Van — NY Plate 47164BB',opposing_party_insurance_company:'State Farm Insurance',fault_determination:'V2 at fault — crossed from bus lane',sol_date:'2026-12-06',narrative:'V1 (Reyes) struck twice by V2 (Francois) who crossed from bus lane.'}},
@@ -559,8 +558,8 @@ function renderAdvOverview() {
     </div>
     <div class="adv-section-label">BREAKDOWN</div>
     <div class="adv-charts">
-      <div class="adv-chart-card"><div class="adv-chart-title">Cases by Type</div><div class="adv-chart-wrap"><canvas id="bar-chart"></canvas></div></div>
-      <div class="adv-chart-card"><div class="adv-chart-title">Urgency Distribution</div><div class="adv-chart-wrap"><canvas id="donut-chart"></canvas></div></div>
+      <div class="adv-chart-card"><div class="adv-chart-title">Cases by Type</div><div class="adv-chart-wrap"><div id="bar-chart" style="height:210px;display:flex;align-items:flex-end"></div></div></div>
+      <div class="adv-chart-card"><div class="adv-chart-title">Urgency Distribution</div><div class="adv-chart-wrap"><div id="donut-chart" style="height:210px;display:flex;align-items:center"></div></div></div>
     </div>
     <div class="adv-section-label">RECENT INTAKES</div>
     <div class="adv-table-card adv-table">
@@ -693,19 +692,48 @@ function advDecline(id) {
 function buildBar() {
   const counts={};
   ALL.forEach(i=>{ counts[i.case_type]=(counts[i.case_type]||0)+1; });
-  const ctx=document.getElementById('bar-chart');
-  if(!ctx) return;
-  if(barChart) barChart.destroy();
-  barChart=new Chart(ctx,{type:'bar',data:{labels:Object.keys(counts),datasets:[{data:Object.values(counts),backgroundColor:'#1B3A6B',borderColor:'#C9A84C',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7d8590',font:{size:10}},grid:{color:'#21262d'}},y:{ticks:{color:'#7d8590',stepSize:1},grid:{color:'#21262d'},beginAtZero:true}}}});
+  const wrap=document.getElementById('bar-chart');
+  if(!wrap) return;
+  const labels=Object.keys(counts), vals=Object.values(counts);
+  const max=Math.max(...vals,1);
+  const colors=['#1B3A6B','#C9A84C','#3fb950','#f85149','#58a6ff','#e08436'];
+  wrap.style.display='flex'; wrap.style.alignItems='flex-end'; wrap.style.gap='10px'; wrap.style.padding='10px 0';
+  wrap.innerHTML = labels.map((l,i)=>{
+    const pct=Math.round((vals[i]/max)*100);
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+      <span style="font-size:11px;color:#e6edf3;font-weight:600">${vals[i]}</span>
+      <div style="width:100%;background:${colors[i%colors.length]};height:${Math.max(pct*1.6,8)}px;border-radius:3px 3px 0 0;border-bottom:2px solid #C9A84C"></div>
+      <span style="font-size:9px;color:#7d8590;text-align:center;line-height:1.2">${l.replace('PI — ','')}</span>
+    </div>`;
+  }).join('');
 }
 
 function buildDonut() {
   const u={critical:0,high:0,medium:0,low:0};
   ALL.forEach(i=>{ if(u[i.urgency]!==undefined) u[i.urgency]++; });
-  const ctx=document.getElementById('donut-chart');
-  if(!ctx) return;
-  if(donutChart) donutChart.destroy();
-  donutChart=new Chart(ctx,{type:'doughnut',data:{labels:['Critical','High','Medium','Low'],datasets:[{data:[u.critical,u.high,u.medium,u.low],backgroundColor:['#f85149','#e08436','#d4a72c','#3fb950'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#e6edf3',font:{size:12},padding:14,boxWidth:12}}}}});
+  const wrap=document.getElementById('donut-chart');
+  if(!wrap) return;
+  const total=u.critical+u.high+u.medium+u.low||1;
+  const cats=[
+    {label:'Critical',val:u.critical,color:'#f85149'},
+    {label:'High',    val:u.high,    color:'#e08436'},
+    {label:'Medium',  val:u.medium,  color:'#d4a72c'},
+    {label:'Low',     val:u.low,     color:'#3fb950'},
+  ];
+  wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='16px';
+  // SVG donut
+  let offset=0, svgPaths='';
+  const r=50, cx=60, cy=60, stroke=18;
+  const circ=2*Math.PI*r;
+  cats.forEach(c=>{
+    if(!c.val) return;
+    const pct=c.val/total;
+    const dash=pct*circ;
+    svgPaths+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${-offset*circ}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset+=pct;
+  });
+  const legend=cats.map(c=>`<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#e6edf3"><span style="width:10px;height:10px;border-radius:2px;background:${c.color};flex-shrink:0"></span>${c.label} <span style="color:#7d8590">(${c.val})</span></div>`).join('');
+  wrap.innerHTML=`<svg width="120" height="120" style="flex-shrink:0">${svgPaths}<text x="${cx}" y="${cy+5}" text-anchor="middle" fill="#e6edf3" font-size="16" font-weight="600">${total}</text></svg><div style="display:flex;flex-direction:column;gap:8px">${legend}</div>`;
 }
 
 // ══════════════════════════════════════════════════════
