@@ -1,11 +1,35 @@
 import os
 import json
+import re
 import logging
 import boto3
 from botocore.exceptions import ClientError
 import anthropic
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> dict:
+    """Robustly extract JSON from Claude's response (handles markdown fences)."""
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    fenced = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if fenced:
+        try:
+            return json.loads(fenced.group(1))
+        except json.JSONDecodeError:
+            pass
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+    raise json.JSONDecodeError("No valid JSON found in response", text, 0)
 
 s3        = boto3.client("s3")
 PDF_BUCKET = os.environ.get("PDF_BUCKET", "lexcipher-police-reports")
@@ -108,7 +132,8 @@ def extract_for_clio(pdf_bytes: bytes) -> dict:
         )
 
         raw    = response.content[0].text.strip()
-        result = json.loads(raw)
+        logger.info(f"Clio extraction raw: {raw[:500]}")
+        result = _extract_json(raw)
         logger.info(f"Clio extraction complete: report# {result.get('police_report_number', 'unknown')}")
         return result
 

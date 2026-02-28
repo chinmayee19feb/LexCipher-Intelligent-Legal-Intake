@@ -10,7 +10,43 @@ from prompt import (
     build_extraction_prompt,
 )
 
+import re
+
 logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> dict:
+    """
+    Robustly extract JSON from Claude's response.
+    Handles: raw JSON, ```json fences, ```fences, or text before/after JSON.
+    """
+    text = text.strip()
+
+    # 1. Try direct parse first
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # 2. Strip markdown code fences: ```json ... ``` or ``` ... ```
+    fenced = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if fenced:
+        try:
+            return json.loads(fenced.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    # 3. Find first { ... last } in the response
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    raise json.JSONDecodeError("No valid JSON found in response", text, 0)
+
 
 def _get_api_key() -> str:
     # First try env var (local/test)
@@ -65,7 +101,8 @@ def classify_case(client_name: str, description: str, incident_date: str, prior_
         )
 
         raw = response.content[0].text.strip()
-        result = json.loads(raw)
+        logger.info(f"Classification raw response: {raw[:500]}")
+        result = _extract_json(raw)
         _validate_classification(result)
         logger.info(f"Classification: {result['case_type']} | Score: {result['viability_score']} | Urgency: {result['urgency']}")
         return result
@@ -156,7 +193,8 @@ def extract_police_report(pdf_base64: str, media_type: str = "application/pdf") 
         )
 
         raw = response.content[0].text.strip()
-        result = json.loads(raw)
+        logger.info(f"Extraction raw response: {raw[:500]}")
+        result = _extract_json(raw)
         logger.info(f"Police report extracted: report# {result.get('police_report_number', 'unknown')}")
         return result
 
