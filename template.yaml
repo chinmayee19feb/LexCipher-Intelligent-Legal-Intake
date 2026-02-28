@@ -131,7 +131,7 @@ Resources:
     Properties:
       FunctionName: !Sub lexcipher-intake-${Stage}
       CodeUri: lexcipher-intake/
-      Handler: handler.handler
+      Handler: handler.lambda_handler
       Description: Receives intake form submissions, classifies cases, extracts police reports via Claude AI
       Policies:
         - DynamoDBCrudPolicy:
@@ -209,7 +209,7 @@ Resources:
     Properties:
       FunctionName: !Sub lexcipher-dashboard-${Stage}
       CodeUri: dashboard/
-      Handler: handler.handler
+      Handler: handler.lambda_handler
       Description: Returns recent intakes for the operations dashboard
       Policies:
         - DynamoDBReadPolicy:

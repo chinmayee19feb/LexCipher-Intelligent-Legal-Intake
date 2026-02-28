@@ -289,7 +289,7 @@
 </main>
 
 <script>
-  const API_URL = 'https://7t8pa65z48.execute-api.us-east-1.amazonaws.com/intake';
+  const API_URL = 'https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod/intake';
 
   // ── File Upload (NEW) ─────────────────────────────────────────────
   let selectedFile = null;
@@ -354,29 +354,30 @@
     try {
       let body, headers = {};
 
+      // Always send JSON — PDF as base64 string
+      headers['Content-Type'] = 'application/json';
+      const payload = {
+        client_name:    name,
+        client_email:   email,
+        client_phone:   phone,
+        incident_date:  date,
+        prior_attorney: priorRadio.value === 'true',
+        description:    desc,
+      };
+
       if (selectedFile) {
-        // Multipart — PDF attached
-        const fd = new FormData();
-        fd.append('client_name',    name);
-        fd.append('client_email',   email);
-        fd.append('client_phone',   phone);
-        fd.append('incident_date',  date);
-        fd.append('prior_attorney', priorRadio.value);
-        fd.append('description',    desc);
-        fd.append('police_report',  selectedFile);
-        body = fd;
-      } else {
-        // JSON only — original LexFlow path
-        headers['Content-Type'] = 'application/json';
-        body = JSON.stringify({
-          client_name:    name,
-          client_email:   email,
-          client_phone:   phone,
-          incident_date:  date,
-          prior_attorney: priorRadio.value === 'true',
-          description:    desc
+        // Read PDF as base64 and include in JSON
+        const pdfBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload  = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
         });
+        payload.police_report_base64 = pdfBase64;
+        payload.police_report_name   = selectedFile.name;
       }
+
+      body = JSON.stringify(payload);
 
       const res  = await fetch(API_URL, { method: 'POST', headers, body });
       const data = await res.json();
