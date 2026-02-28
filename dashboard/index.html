@@ -360,12 +360,12 @@ let ALL = [], currentView = 'classic', advView = 'overview', selectedId = null;
 let clFilter_ = 'all';
 
 const DEMO = [
-  {intake_id:'INT-001',client_name:'Guillermo Reyes',client_email:'g.reyes@email.com',client_phone:'+1 (973) 555-0142',submitted_at:new Date(Date.now()-3*3600000).toISOString(),status:'new',case_type:'PI — Vehicle Accident',urgency:'critical',viability_score:8,sol_flag:true,has_police_report:true,clio_synced:false,description:'Two-impact collision on Flatbush Avenue. Neck and back injuries. Commercial vehicle involved.',key_facts:['Two-impact collision — reckless driving pattern','Police report MV-2018-078-002001 confirms fault','SOL expires December 6, 2026 — urgent filing needed','Commercial vehicle — employer liability possible'],recommended_action:'Accept immediately. High viability. SOL within 10 months.',extracted:{accident_date:'2018-12-06',accident_location:'Flatbush Ave at Plaza Street East, Brooklyn, NY',police_report_number:'MV-2018-078-002001',client_vehicle_make_model:'2010 Freightliner Box Truck',opposing_party_name:'Lionel Francois',opposing_party_vehicle:'2011 Ford Van — NY Plate 47164BB',opposing_party_insurance_company:'State Farm Insurance',fault_determination:'V2 at fault — crossed from bus lane',sol_date:'2026-12-06',narrative:'V1 (Reyes) struck twice by V2 (Francois) who crossed from bus lane.'}},
-  {intake_id:'INT-002',client_name:'Maria Santana',client_email:'m.santana@email.com',client_phone:'+1 (212) 555-0287',submitted_at:new Date(Date.now()-5*3600000).toISOString(),status:'new',case_type:'PI — Slip and Fall',urgency:'high',viability_score:6,sol_flag:false,has_police_report:false,clio_synced:false,description:'Slipped on ice outside grocery store entrance. Fractured wrist. No warning signs posted.',key_facts:['Premises liability — store duty of care','No warning signs = clear negligence','Fractured wrist — documented at ER','Surveillance footage may exist'],recommended_action:'Accept. Request medical records and subpoena store surveillance.',extracted:null},
-  {intake_id:'INT-003',client_name:'James Thornton',client_email:'jthornton@business.net',client_phone:'+1 (718) 555-0391',submitted_at:new Date(Date.now()-26*3600000).toISOString(),status:'declined',case_type:'Out of Scope',urgency:'low',viability_score:1,sol_flag:false,has_police_report:false,clio_synced:false,description:'Business partner dispute over profit sharing. No written partnership agreement.',key_facts:['Business dispute — not personal injury','No written contract','Out of practice scope'],recommended_action:'Decline. Refer to business litigation specialist.',extracted:null}
+  {intake_id:'INT-001',client_name:'Guillermo Reyes',client_email:'g.reyes@email.com',client_phone:'+1 (973) 555-0142',submitted_at:new Date(Date.now()-3*3600000).toISOString(),status:'new',case_type:'PI \u2014 Vehicle Accident',urgency:'critical',viability_score:8,sol_flag:true,has_police_report:true,clio_synced:false,description:'Two-impact collision on Flatbush Avenue. Neck and back injuries. Commercial vehicle involved.',key_facts:['Two-impact collision \u2014 reckless driving pattern','Police report MV-2018-078-002001 confirms fault','SOL expires December 6, 2026 \u2014 urgent filing needed','Commercial vehicle \u2014 employer liability possible'],recommended_action:'Accept immediately. High viability. SOL within 10 months.',extracted:{accident_date:'2018-12-06',accident_location:'Flatbush Ave at Plaza Street East, Brooklyn, NY',police_report_number:'MV-2018-078-002001',client_vehicle_make_model:'2010 Freightliner Box Truck',opposing_party_name:'Lionel Francois',opposing_party_vehicle:'2011 Ford Van \u2014 NY Plate 47164BB',opposing_party_insurance_company:'State Farm Insurance',fault_determination:'V2 at fault \u2014 crossed from bus lane',sol_date:'2026-12-06',narrative:'V1 (Reyes) struck twice by V2 (Francois) who crossed from bus lane.'}},
+  {intake_id:'INT-002',client_name:'Maria Santana',client_email:'m.santana@email.com',client_phone:'+1 (212) 555-0287',submitted_at:new Date(Date.now()-5*3600000).toISOString(),status:'new',case_type:'PI \u2014 Slip and Fall',urgency:'high',viability_score:6,sol_flag:false,has_police_report:false,clio_synced:false,description:'Slipped on ice outside grocery store entrance. Fractured wrist. No warning signs posted.',key_facts:['Premises liability \u2014 store duty of care','No warning signs = clear negligence','Fractured wrist \u2014 documented at ER','Surveillance footage may exist'],recommended_action:'Accept. Request medical records and subpoena store surveillance.',extracted:null},
+  {intake_id:'INT-003',client_name:'James Thornton',client_email:'jthornton@business.net',client_phone:'+1 (718) 555-0391',submitted_at:new Date(Date.now()-26*3600000).toISOString(),status:'declined',case_type:'Out of Scope',urgency:'low',viability_score:1,sol_flag:false,has_police_report:false,clio_synced:false,description:'Business partner dispute over profit sharing. No written partnership agreement.',key_facts:['Business dispute \u2014 not personal injury','No written contract','Out of practice scope'],recommended_action:'Decline. Refer to business litigation specialist.',extracted:null}
 ];
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+// -- Data ----------------------------------------------------------------------
 async function loadData() {
   try {
     const r = await fetch(API);
@@ -387,7 +387,7 @@ function renderAll() {
   renderAdvanced();
 }
 
-// ── View switcher ──────────────────────────────────────────────────────────────
+// -- View switcher --------------------------------------------------------------
 function switchView(v) {
   currentView = v;
   document.body.className = 'view-' + v;
@@ -398,9 +398,9 @@ function switchView(v) {
   if (v==='advanced') setTimeout(()=>{ buildBar(); buildDonut(); }, 80);
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // CLASSIC RENDER
-// ══════════════════════════════════════════════════════
+// ======================================================
 function renderClassic() {
   const total  = ALL.length;
   const urgent = ALL.filter(i=>i.urgency==='critical').length;
@@ -435,7 +435,7 @@ function renderCaseList() {
         </div>
         <div class="cl-case-type" style="display:flex;align-items:center;gap:6px">
           <span style="width:7px;height:7px;border-radius:50%;background:${i.urgency==='critical'?'var(--red)':i.urgency==='high'?'var(--orange)':i.urgency==='medium'?'var(--yellow)':'var(--green)'};flex-shrink:0;display:inline-block"></span>
-          ${i.case_type}${i.has_police_report?' · <span style="color:var(--muted)">📎 PDF</span>':''}
+          ${i.case_type}${i.has_police_report?' \u00B7 <span style="color:var(--muted)">\uD83D\uDCCE PDF</span>':''}
         </div>
         <div style="font-size:11px;color:var(--sub);margin-top:4px">${fmt(i.submitted_at)}</div>
       </div>
@@ -464,17 +464,17 @@ function openCase(id) {
         </div>
         <div style="text-align:right">
           <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500">${c.client_name}</div>
-          <div style="font-size:12px;color:var(--muted)">${c.intake_id} · ${fmt(c.submitted_at)}</div>
+          <div style="font-size:12px;color:var(--muted)">${c.intake_id} \u00B7 ${fmt(c.submitted_at)}</div>
         </div>
       </div>
 
-      ${c.sol_flag?`<div class="sol-warning">⚠️ Statute of Limitations risk — ${ext.sol_date||'deadline approaching'}. File immediately.</div>`:''}
+      ${c.sol_flag?`<div class="sol-warning">\u26A0\uFE0F Statute of Limitations risk \u2014 ${ext.sol_date||'deadline approaching'}. File immediately.</div>`:''}
 
       <div class="cl-section">
         <div class="cl-section-title">Client Information</div>
         <div class="cl-info-grid">
           <div class="cl-info-row"><div class="cl-info-label">Email</div><div class="cl-info-val">${c.client_email}</div></div>
-          <div class="cl-info-row"><div class="cl-info-label">Phone</div><div class="cl-info-val">${c.client_phone||'—'}</div></div>
+          <div class="cl-info-row"><div class="cl-info-label">Phone</div><div class="cl-info-val">${c.client_phone||'\u2014'}</div></div>
           <div class="cl-info-row"><div class="cl-info-label">Case Type</div><div class="cl-info-val">${c.case_type}</div></div>
           <div class="cl-info-row"><div class="cl-info-label">Status</div><div class="cl-info-val"><span class="chip chip-${c.clio_synced?'synced':c.status}">${c.clio_synced?'Synced to Clio':c.status}</span></div></div>
           <div class="cl-info-row full"><div class="cl-info-label">Description</div><div class="cl-info-val">${c.description}</div></div>
@@ -493,33 +493,33 @@ function openCase(id) {
         <div class="cl-section-title">Police Report Extraction</div>
         <div class="cl-extract-grid">
           <div class="cl-ext-row"><div class="cl-ext-label">Accident Date</div><div class="cl-ext-val">${ext.accident_date}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Report Number</div><div class="cl-ext-val">${ext.police_report_number||'—'}</div></div>
-          <div class="cl-ext-row full"><div class="cl-ext-label">Location</div><div class="cl-ext-val">${ext.accident_location||'—'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||'—'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Party</div><div class="cl-ext-val">${ext.opposing_party_name||'—'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Vehicle</div><div class="cl-ext-val">${ext.opposing_party_vehicle||'—'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Insurance</div><div class="cl-ext-val">${ext.opposing_party_insurance_company||'—'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Fault</div><div class="cl-ext-val">${ext.fault_determination||'—'}</div></div>
-          <div class="cl-ext-row full" style="border-color:rgba(192,57,43,.3)"><div class="cl-ext-label" style="color:var(--red)">SOL Deadline</div><div class="cl-ext-val" style="color:var(--red);font-weight:600">${ext.sol_date||'—'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Report Number</div><div class="cl-ext-val">${ext.police_report_number||'\u2014'}</div></div>
+          <div class="cl-ext-row full"><div class="cl-ext-label">Location</div><div class="cl-ext-val">${ext.accident_location||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Party</div><div class="cl-ext-val">${ext.opposing_party_name||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Vehicle</div><div class="cl-ext-val">${ext.opposing_party_vehicle||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Insurance</div><div class="cl-ext-val">${ext.opposing_party_insurance_company||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Fault</div><div class="cl-ext-val">${ext.fault_determination||'\u2014'}</div></div>
+          <div class="cl-ext-row full" style="border-color:rgba(192,57,43,.3)"><div class="cl-ext-label" style="color:var(--red)">SOL Deadline</div><div class="cl-ext-val" style="color:var(--red);font-weight:600">${ext.sol_date||'\u2014'}</div></div>
         </div>
       </div>`:''}
 
       <div class="cl-section">
         <div class="cl-section-title">Workflow Status</div>
         <div class="cl-timeline">
-          ${clStep('✓','Intake Received','Form submitted by client','done')}
-          ${clStep('✓','AI Classification','Case type and viability assessed','done')}
-          ${clStep(ext.accident_date?'✓':'○',ext.accident_date?'PDF Extracted':'PDF Extraction',ext.accident_date?'Police report parsed by Claude AI':'Awaiting police report upload',ext.accident_date?'done':'pending')}
-          ${clStep(c.status==='new'?'→':'✓','Paralegal Review',c.status==='new'?'Awaiting your decision':'Reviewed',c.status==='new'?'active-step':'done')}
-          ${clStep(c.clio_synced?'✓':'○','Clio Sync',c.clio_synced?'Matter updated, SOL calendar set':'Pending approval',c.clio_synced?'done':'pending')}
-          ${clStep(c.clio_synced?'✓':'○','Retainer Email',c.clio_synced?'Sent to client':'Pending Clio sync',c.clio_synced?'done':'pending')}
+          ${clStep('\u2713','Intake Received','Form submitted by client','done')}
+          ${clStep('\u2713','AI Classification','Case type and viability assessed','done')}
+          ${clStep(ext.accident_date?'\u2713':'\u25CB',ext.accident_date?'PDF Extracted':'PDF Extraction',ext.accident_date?'Police report parsed by Claude AI':'Awaiting police report upload',ext.accident_date?'done':'pending')}
+          ${clStep(c.status==='new'?'\u2192':'\u2713','Paralegal Review',c.status==='new'?'Awaiting your decision':'Reviewed',c.status==='new'?'active-step':'done')}
+          ${clStep(c.clio_synced?'\u2713':'\u25CB','Clio Sync',c.clio_synced?'Matter updated, SOL calendar set':'Pending approval',c.clio_synced?'done':'pending')}
+          ${clStep(c.clio_synced?'\u2713':'\u25CB','Retainer Email',c.clio_synced?'Sent to client':'Pending Clio sync',c.clio_synced?'done':'pending')}
         </div>
       </div>
 
       ${c.status==='new'?`<div class="cl-actions">
-        <button class="cl-btn cl-btn-primary" onclick="openModal()">✓ Accept &amp; Sync to Clio</button>
-        <button class="cl-btn cl-btn-decline" onclick="declineCase()">✕ Decline Case</button>
-      </div>`:c.clio_synced?`<div style="padding:12px 14px;background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:6px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">✅ Synced to Clio · SOL calendar created · Retainer email sent to ${c.client_email}</div>`:''}
+        <button class="cl-btn cl-btn-primary" onclick="openModal()">\u2713 Accept &amp; Sync to Clio</button>
+        <button class="cl-btn cl-btn-decline" onclick="declineCase()">\u2715 Decline Case</button>
+      </div>`:c.clio_synced?`<div style="padding:12px 14px;background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:6px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">\u2705 Synced to Clio \u00B7 SOL calendar created \u00B7 Retainer email sent to ${c.client_email}</div>`:''}
     </div>`;
 }
 
@@ -533,13 +533,13 @@ function clStep(icon, title, sub, state) {
   </div>`;
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // ADVANCED RENDER
-// ══════════════════════════════════════════════════════
+// ======================================================
 function renderAdvanced() {
-  document.getElementById('adv-nav-new').textContent    = ALL.filter(i=>i.status==='new').length || '—';
-  document.getElementById('adv-nav-urgent').textContent = ALL.filter(i=>i.urgency==='critical').length || '—';
-  document.getElementById('adv-nav-sol').textContent    = ALL.filter(i=>i.sol_flag).length || '—';
+  document.getElementById('adv-nav-new').textContent    = ALL.filter(i=>i.status==='new').length || '\u2014';
+  document.getElementById('adv-nav-urgent').textContent = ALL.filter(i=>i.urgency==='critical').length || '\u2014';
+  document.getElementById('adv-nav-sol').textContent    = ALL.filter(i=>i.sol_flag).length || '\u2014';
   if (advView==='overview') renderAdvOverview(); else renderAdvTable(advView);
 }
 
@@ -600,7 +600,7 @@ function advTable(intakes) {
         <td class="${sc2}">${sc}/10</td>
         <td><span class="dk-badge dk-badge-${i.urgency}">${i.urgency}</span></td>
         <td><span class="dk-badge dk-badge-${i.clio_synced?'synced':i.status}">${i.clio_synced?'synced':i.status}</span></td>
-        <td>${i.sol_flag?'<span style="color:var(--dk-red)">⚠️</span>':'—'}</td>
+        <td>${i.sol_flag?'<span style="color:var(--dk-red)">\u26A0\uFE0F</span>':'\u2014'}</td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
@@ -614,12 +614,12 @@ function advOpenCase(id) {
   const urgColor = c.urgency==='critical'?'var(--dk-red)':c.urgency==='high'?'var(--dk-orange)':c.urgency==='medium'?'var(--dk-yellow)':'var(--dk-green)';
   document.getElementById('adv-panel-content').innerHTML = `
     <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:var(--dk-text);margin-bottom:4px">${c.client_name}</div>
-    <div style="font-size:12px;color:var(--dk-muted);margin-bottom:14px">${c.intake_id} · ${fmt(c.submitted_at)}</div>
+    <div style="font-size:12px;color:var(--dk-muted);margin-bottom:14px">${c.intake_id} \u00B7 ${fmt(c.submitted_at)}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
       <span class="dk-badge dk-badge-${c.urgency}">${c.urgency}</span>
       <span class="dk-badge dk-badge-${c.clio_synced?'synced':c.status}">${c.clio_synced?'synced':c.status}</span>
-      ${c.sol_flag?'<span class="dk-badge dk-badge-critical">⚠️ SOL Risk</span>':''}
-      ${c.has_police_report?'<span class="dk-badge dk-badge-new">📎 PDF</span>':''}
+      ${c.sol_flag?'<span class="dk-badge dk-badge-critical">\u26A0\uFE0F SOL Risk</span>':''}
+      ${c.has_police_report?'<span class="dk-badge dk-badge-new">\uD83D\uDCCE PDF</span>':''}
     </div>
 
     <div style="background:var(--dk-bg3);border:1px solid var(--dk-border);border-radius:6px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between">
@@ -633,11 +633,11 @@ function advOpenCase(id) {
       </div>
     </div>
 
-    ${c.sol_flag?`<div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.25);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--dk-red)">⚠️ SOL Risk — ${ext.sol_date||'deadline approaching'}. File immediately.</div>`:''}
+    ${c.sol_flag?`<div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.25);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--dk-red)">\u26A0\uFE0F SOL Risk \u2014 ${ext.sol_date||'deadline approaching'}. File immediately.</div>`:''}
 
     <div style="margin-bottom:16px">
       <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">Client Info</div>
-      ${[['Email',c.client_email],['Phone',c.client_phone||'—'],['Case Type',c.case_type]].map(([k,v])=>`
+      ${[['Email',c.client_email],['Phone',c.client_phone||'\u2014'],['Case Type',c.case_type]].map(([k,v])=>`
         <div style="display:flex;gap:10px;padding:5px 0;font-size:13px;border-bottom:1px solid rgba(48,54,61,.5)">
           <span style="color:var(--dk-muted);width:80px;flex-shrink:0">${k}</span>
           <span style="color:var(--dk-text)">${v}</span>
@@ -646,19 +646,19 @@ function advOpenCase(id) {
 
     <div style="margin-bottom:16px">
       <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">AI Key Facts</div>
-      ${(c.key_facts||[]).map(f=>`<div style="display:flex;gap:8px;padding:6px 10px;background:var(--dk-bg3);border-radius:4px;font-size:12px;line-height:1.5;margin-bottom:5px;color:#e6edf3"><span style="color:var(--gold);flex-shrink:0">◆</span>${f}</div>`).join('')}
+      ${(c.key_facts||[]).map(f=>`<div style="display:flex;gap:8px;padding:6px 10px;background:var(--dk-bg3);border-radius:4px;font-size:12px;line-height:1.5;margin-bottom:5px;color:#e6edf3"><span style="color:var(--gold);flex-shrink:0">\u25C6</span>${f}</div>`).join('')}
     </div>
 
     ${ext.accident_date?`<div style="margin-bottom:16px">
       <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">Police Report Extraction</div>
-      ${[['Accident Date',ext.accident_date],['Report #',ext.police_report_number||'—'],['Location',ext.accident_location||'—'],['Opposing Party',ext.opposing_party_name||'—'],['Insurance',ext.opposing_party_insurance_company||'—']].map(([k,v])=>`
+      ${[['Accident Date',ext.accident_date],['Report #',ext.police_report_number||'\u2014'],['Location',ext.accident_location||'\u2014'],['Opposing Party',ext.opposing_party_name||'\u2014'],['Insurance',ext.opposing_party_insurance_company||'\u2014']].map(([k,v])=>`
         <div style="display:flex;gap:10px;padding:5px 0;font-size:13px;border-bottom:1px solid rgba(48,54,61,.5)">
           <span style="color:var(--dk-muted);width:110px;flex-shrink:0">${k}</span>
           <span style="color:var(--dk-text)">${v}</span>
         </div>`).join('')}
       <div style="display:flex;gap:10px;padding:5px 0;font-size:13px">
         <span style="color:var(--dk-muted);width:110px;flex-shrink:0">SOL Deadline</span>
-        <span style="color:var(--dk-red);font-weight:600">${ext.sol_date||'—'}</span>
+        <span style="color:var(--dk-red);font-weight:600">${ext.sol_date||'\u2014'}</span>
       </div>
     </div>`:''}
 
@@ -668,9 +668,9 @@ function advOpenCase(id) {
     </div>
 
     ${c.status==='new'?`<div style="display:flex;gap:8px">
-      <button class="m-btn m-btn-primary" onclick="openModal()" style="background:var(--gold);color:#1a1a1a">✓ Accept &amp; Sync to Clio</button>
-      <button class="m-btn m-btn-ghost" onclick="advDecline('${c.intake_id}')" style="background:rgba(248,81,73,.1);color:var(--dk-red);border:1px solid rgba(248,81,73,.3)">✕ Decline</button>
-    </div>`:c.clio_synced?`<div style="padding:12px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:6px;font-size:13px;color:var(--dk-green)">✅ Synced to Clio · SOL calendar created · Retainer email sent</div>`:''}
+      <button class="m-btn m-btn-primary" onclick="openModal()" style="background:var(--gold);color:#1a1a1a">\u2713 Accept &amp; Sync to Clio</button>
+      <button class="m-btn m-btn-ghost" onclick="advDecline('${c.intake_id}')" style="background:rgba(248,81,73,.1);color:var(--dk-red);border:1px solid rgba(248,81,73,.3)">\u2715 Decline</button>
+    </div>`:c.clio_synced?`<div style="padding:12px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:6px;font-size:13px;color:var(--dk-green)">\u2705 Synced to Clio \u00B7 SOL calendar created \u00B7 Retainer email sent</div>`:''}
   `;
   const overlay = document.getElementById('adv-overlay');
   const panel   = document.getElementById('adv-panel');
@@ -708,7 +708,7 @@ function buildBar() {
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
       <span style="font-size:11px;color:#e6edf3;font-weight:600">${vals[i]}</span>
       <div style="width:100%;background:${colors[i%colors.length]};height:${Math.max(pct*1.6,8)}px;border-radius:3px 3px 0 0;border-bottom:2px solid #C9A84C"></div>
-      <span style="font-size:9px;color:#7d8590;text-align:center;line-height:1.2">${l.replace('PI — ','')}</span>
+      <span style="font-size:9px;color:#7d8590;text-align:center;line-height:1.2">${l.replace('PI \u2014 ','')}</span>
     </div>`;
   }).join('');
 }
@@ -741,9 +741,9 @@ function buildDonut() {
   wrap.innerHTML=`<svg width="120" height="120" style="flex-shrink:0">${svgPaths}<text x="${cx}" y="${cy+5}" text-anchor="middle" fill="#e6edf3" font-size="16" font-weight="600">${total}</text></svg><div style="display:flex;flex-direction:column;gap:8px">${legend}</div>`;
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // MODAL
-// ══════════════════════════════════════════════════════
+// ======================================================
 function openModal() {
   const c=ALL.find(i=>i.intake_id===selectedId);
   if(!c) return;
@@ -774,7 +774,7 @@ function markChanged(el) { el.classList.add('field-changed'); }
 
 async function approveToClio() {
   const btn=document.getElementById('approve-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner-inline"></span> Syncing…';
+  btn.disabled=true; btn.innerHTML='<span class="spinner-inline"></span> Syncing\u2026';
   const c=ALL.find(i=>i.intake_id===selectedId);
   const verified={
     accident_date:document.getElementById('vf_accident_date')?.value,
@@ -793,8 +793,8 @@ async function approveToClio() {
   } catch(e){ console.warn('Demo mode',e); }
   if(c){ c.status='active'; c.clio_synced=true; c.extracted={...c.extracted,...verified}; }
   closeModal(); renderAll(); openCase(selectedId);
-  showToast('✅ Synced to Clio! SOL calendar created. Retainer email sent.','success');
-  btn.disabled=false; btn.innerHTML='✓ Approve & Sync to Clio';
+  showToast('\u2705 Synced to Clio! SOL calendar created. Retainer email sent.','success');
+  btn.disabled=false; btn.innerHTML='\u2713 Approve & Sync to Clio';
 }
 
 function declineCase() {
@@ -805,7 +805,7 @@ function declineCase() {
 
 document.getElementById('modal-overlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modal-overlay')) closeModal(); });
 
-function fmt(iso) { if(!iso) return '—'; return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function fmt(iso) { if(!iso) return '\u2014'; return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function showToast(msg,type='info') { const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type} show`; setTimeout(()=>t.classList.remove('show'),4000); }
 
 loadData();
