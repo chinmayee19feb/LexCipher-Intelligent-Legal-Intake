@@ -374,6 +374,11 @@ async function loadData() {
     ALL = d.intakes || [];
     if (!ALL.length) ALL = DEMO;
   } catch(e) { ALL = DEMO; }
+  // Normalize: db.py used "pending" before fix, dashboard expects "new"
+  ALL.forEach(i => {
+    if (i.status === 'pending') i.status = 'new';
+    if (!i.submitted_at && i.created_at) i.submitted_at = i.created_at;
+  });
   renderAll();
 }
 

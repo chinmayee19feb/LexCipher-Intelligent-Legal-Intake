@@ -27,7 +27,7 @@ def lambda_handler(event, context):
         if method == 'GET' and path.endswith('/intakes'):
             result = table.scan(Limit=50)
             items  = result.get('Items', [])
-            items.sort(key=lambda x: x.get('submitted_at', ''), reverse=True)
+            items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
             return ok({'intakes': items})
 
         # GET /intakes/{id} — single intake

@@ -295,7 +295,7 @@ def _get_seasonal_booking_link() -> str:
         return BOOKING_LINKS["fall"]
 
 
-def _calculate_sol(incident_date: str, years: int = 8) -> str | None:
+def _calculate_sol(incident_date: str, years: int = 3) -> str | None:
     """Calculate SOL date = incident_date + years. Returns YYYY-MM-DD or None."""
     try:
         dt = datetime.strptime(incident_date, "%Y-%m-%d")

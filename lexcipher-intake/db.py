@@ -64,7 +64,7 @@ def save_intake(
         "pdf_s3_key":        pdf_s3_key,
 
         # Status & timestamps
-        "status":     "pending",
+        "status":     "new",
         "created_at": now,
         "updated_at": now,
     }
@@ -201,4 +201,4 @@ def get_recent_intakes(limit: int = 50) -> list:
         return items
     except ClientError as e:
         logger.error(f"DynamoDB scan failed: {e}")
-        return []
+        return []   

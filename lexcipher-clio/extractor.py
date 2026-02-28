@@ -9,8 +9,22 @@ logger = logging.getLogger(__name__)
 
 s3        = boto3.client("s3")
 PDF_BUCKET = os.environ.get("PDF_BUCKET", "lexcipher-police-reports")
-client    = anthropic.Anthropic()
 MODEL     = "claude-haiku-4-5"
+
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        # Lazy init — avoid cold-start SSM failure
+        ssm = boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+        try:
+            resp = ssm.get_parameter(Name="/lexcipher/anthropic/api_key", WithDecryption=True)
+            api_key = resp["Parameter"]["Value"]
+        except Exception:
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        _client = anthropic.Anthropic(api_key=api_key)
+    return _client
 
 
 # ── Fetch PDF from S3 ──────────────────────────────────────────────────────
@@ -68,7 +82,7 @@ def extract_for_clio(pdf_bytes: bytes) -> dict:
     try:
         pdf_base64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
 
-        response = client.messages.create(
+        response = _get_client().messages.create(
             model=MODEL,
             max_tokens=1024,
             system=CLIO_EXTRACTION_SYSTEM_PROMPT,
