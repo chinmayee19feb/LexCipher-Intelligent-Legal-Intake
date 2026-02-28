@@ -37,31 +37,21 @@ def lambda_handler(event, context):
         return _error(405, "Method not allowed")
 
     try:
-        content_type = event.get("headers", {}).get("content-type", "") or \
-                       event.get("headers", {}).get("Content-Type", "")
+        # ── Always JSON — PDF arrives as base64 string ───────────────────
+        body = json.loads(event.get("body") or "{}")
 
-        # ── Multipart (with PDF) ───────────────────────────────────────────
-        if "multipart/form-data" in content_type:
-            fields, pdf_bytes = _parse_multipart(event, content_type)
+        client_name    = body.get("client_name",    "").strip()
+        client_email   = body.get("client_email",   "").strip()
+        client_phone   = body.get("client_phone",   "").strip()
+        incident_date  = body.get("incident_date",  "").strip()
+        prior_attorney = bool(body.get("prior_attorney", False))
+        description    = body.get("description",    "").strip()
 
-            client_name    = fields.get("client_name",    "").strip()
-            client_email   = fields.get("client_email",   "").strip()
-            client_phone   = fields.get("client_phone",   "").strip()
-            incident_date  = fields.get("incident_date",  "").strip()
-            prior_attorney = fields.get("prior_attorney", "false").lower() == "true"
-            description    = fields.get("description",    "").strip()
-
-        # ── JSON (no PDF) ──────────────────────────────────────────────────
-        else:
-            body = json.loads(event.get("body") or "{}")
-
-            client_name    = body.get("client_name",    "").strip()
-            client_email   = body.get("client_email",   "").strip()
-            client_phone   = body.get("client_phone",   "").strip()
-            incident_date  = body.get("incident_date",  "").strip()
-            prior_attorney = bool(body.get("prior_attorney", False))
-            description    = body.get("description",    "").strip()
-            pdf_bytes      = None
+        # Decode PDF if provided as base64
+        pdf_bytes = None
+        pdf_b64   = body.get("police_report_base64", "")
+        if pdf_b64:
+            pdf_bytes = base64.b64decode(pdf_b64)
 
         # ── Validate required fields ───────────────────────────────────────
         missing = [f for f, v in {
