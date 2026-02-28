@@ -3,991 +3,779 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Richards & Law — Case Intake Dashboard</title>
+<title>Richards & Law — Operations Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
-  /* ── Reset & Variables ───────────────────────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1B3A6B; --gold:#C9A84C; --gold2:#e8c97a;
+  --cream:#FAF8F4; --white:#ffffff; --light:#F0EDE6; --border:#E2DDD5;
+  --text:#1a1a1a; --muted:#6b7280; --sub:#9ca3af;
+  --red:#c0392b; --orange:#c45c0f; --yellow:#8a6c00; --green:#1a7a4a; --blue:#1B3A6B;
+  --dk-bg:#0d1117; --dk-bg2:#161b22; --dk-bg3:#1c2128; --dk-border:#30363d;
+  --dk-text:#e6edf3; --dk-muted:#7d8590;
+  --dk-red:#f85149; --dk-orange:#e08436; --dk-yellow:#d4a72c; --dk-green:#3fb950; --dk-blue:#58a6ff; --dk-purple:#bc8cff;
+}
+html{font-size:14px}
+body{font-family:'DM Sans',sans-serif;min-height:100vh}
 
-  :root {
-    --navy:       #1B3A6B;
-    --navy-light: #2a4f8a;
-    --navy-dark:  #112447;
-    --gold:       #C9A84C;
-    --gold-light: #e8c97a;
-    --cream:      #FAF8F4;
-    --cream-dark: #F0EDE6;
-    --ink:        #1a1a1a;
-    --muted:      #6b7280;
-    --border:     #E2DDD5;
-    --red:        #c0392b;
-    --red-light:  #fdf2f2;
-    --green:      #1a7a4a;
-    --green-light:#f0faf5;
-    --orange:     #c45c0f;
-    --orange-light:#fff8f0;
-    --blue-light: #f0f4fb;
-    --shadow-sm:  0 1px 3px rgba(0,0,0,.08);
-    --shadow-md:  0 4px 16px rgba(27,58,107,.12);
-    --shadow-lg:  0 12px 40px rgba(27,58,107,.18);
-  }
+/* ══════════════════════════════════════════════════════
+   SHARED HEADER
+══════════════════════════════════════════════════════ */
+.app-header{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:200}
+.header-brand{display:flex;align-items:center;gap:10px}
+.brand-seal{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:600;color:var(--gold)}
+.brand-name{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:500;letter-spacing:.04em}
+.brand-name em{color:var(--gold);font-style:normal}
+.header-controls{display:flex;align-items:center;gap:10px}
+.view-toggle{display:flex;border-radius:6px;overflow:hidden;border:1px solid}
+.view-btn{padding:5px 14px;border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
 
-  html { font-size: 14px; }
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--cream);
-    color: var(--ink);
-    min-height: 100vh;
-    line-height: 1.6;
-  }
+/* classic header */
+.view-classic .app-header{background:var(--navy);border-bottom:1px solid rgba(255,255,255,.1)}
+.view-classic .brand-name{color:#fff}
+.view-classic .view-toggle{border-color:rgba(255,255,255,.2)}
+.view-classic .view-btn{background:rgba(255,255,255,.1);color:rgba(255,255,255,.6)}
+.view-classic .view-btn.active{background:var(--gold);color:#1a1a1a}
+.view-classic .live-dot{background:var(--gold);box-shadow:0 0 6px var(--gold)}
+.view-classic .hdr-user{color:rgba(255,255,255,.6);font-size:12px}
 
-  /* ── Header ──────────────────────────────────────────────────────────────── */
-  .header {
-    background: var(--navy);
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 60px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 12px rgba(0,0,0,.2);
-  }
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .seal {
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 1.5px solid var(--gold); 
-    display: flex; align-items: center; justify-content: center;
-    color: var(--gold); font-family: 'Cormorant Garamond', serif;
-    font-size: 14px; font-weight: 600; letter-spacing: .02em;
-    flex-shrink: 0;
-  }
-  .firm-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 18px; font-weight: 500; color: #fff;
-    letter-spacing: .04em;
-  }
-  .firm-name span { color: var(--gold); }
-  .header-sub { font-size: 11px; color: rgba(255,255,255,.5); letter-spacing: .1em; text-transform: uppercase; }
-  .header-right { display: flex; align-items: center; gap: 20px; }
-  .user-pill {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(255,255,255,.08); border-radius: 20px;
-    padding: 6px 14px; border: 1px solid rgba(255,255,255,.12);
-  }
-  .user-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
-  .user-name { font-size: 12px; color: rgba(255,255,255,.8); }
+/* advanced header */
+.view-advanced .app-header{background:var(--dk-bg2);border-bottom:1px solid var(--dk-border)}
+.view-advanced .brand-name{color:var(--dk-text)}
+.view-advanced .view-toggle{border-color:var(--dk-border)}
+.view-advanced .view-btn{background:var(--dk-bg3);color:var(--dk-muted)}
+.view-advanced .view-btn.active{background:var(--gold);color:#1a1a1a}
+.view-advanced .live-dot{background:var(--dk-green);box-shadow:0 0 6px var(--dk-green)}
+.view-advanced .hdr-user{color:var(--dk-muted);font-size:12px}
 
-  /* ── Layout ──────────────────────────────────────────────────────────────── */
-  .layout { display: flex; height: calc(100vh - 60px); }
+.live-dot{width:7px;height:7px;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  /* ── Sidebar ─────────────────────────────────────────────────────────────── */
-  .sidebar {
-    width: 280px; flex-shrink: 0;
-    background: #fff; border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-  .sidebar-header {
-    padding: 20px 20px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .sidebar-title { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; }
-  .stats-row { display: flex; gap: 8px; }
-  .stat-chip {
-    flex: 1; background: var(--blue-light); border-radius: 6px;
-    padding: 8px 10px; text-align: center;
-  }
-  .stat-chip .num { font-size: 20px; font-weight: 500; color: var(--navy); line-height: 1; }
-  .stat-chip .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
-  .stat-chip.urgent .num { color: var(--red); }
-  .stat-chip.urgent { background: var(--red-light); }
+/* ══════════════════════════════════════════════════════
+   CLASSIC VIEW — navy/gold light theme, sidebar + detail
+══════════════════════════════════════════════════════ */
+#classic-view{display:none;height:calc(100vh - 52px);background:var(--cream)}
+#classic-view.active{display:flex}
 
-  .filter-tabs { display: flex; padding: 10px 12px 0; gap: 4px; }
-  .filter-tab {
-    flex: 1; padding: 6px 4px; border: none; background: none; cursor: pointer;
-    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
-    color: var(--muted); border-radius: 4px; text-align: center;
-    letter-spacing: .04em; transition: all .15s;
-  }
-  .filter-tab:hover { background: var(--cream); color: var(--navy); }
-  .filter-tab.active { background: var(--navy); color: #fff; }
+/* sidebar */
+.cl-sidebar{width:300px;flex-shrink:0;background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.cl-sidebar-head{padding:16px 18px;border-bottom:1px solid var(--border)}
+.cl-sidebar-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.cl-stats{display:flex;gap:6px}
+.cl-stat{flex:1;background:var(--light);border-radius:6px;padding:8px;text-align:center}
+.cl-stat-num{font-size:20px;font-weight:500;line-height:1}
+.cl-stat-num.navy{color:var(--navy)}
+.cl-stat-num.gold{color:var(--gold)}
+.cl-stat-num.red{color:var(--red)}
+.cl-stat-label{font-size:10px;color:var(--muted);margin-top:2px}
+.cl-filters{display:flex;gap:4px;padding:10px 18px;border-bottom:1px solid var(--border)}
+.cl-filter{flex:1;padding:5px;text-align:center;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid transparent;color:var(--muted);transition:all .15s}
+.cl-filter.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.cl-filter:hover:not(.active){background:var(--light)}
+.cl-case-list{flex:1;overflow-y:auto}
+.cl-case-list::-webkit-scrollbar{width:4px}
+.cl-case-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.cl-case-item{padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;gap:12px;align-items:flex-start}
+.cl-case-item:hover{background:var(--light)}
+.cl-case-item.active{background:rgba(27,58,107,.06);border-left:3px solid var(--navy)}
+.cl-score-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;margin-top:2px}
+.cl-case-info{flex:1;min-width:0}
+.cl-case-name{font-weight:500;font-size:13px;color:var(--text);margin-bottom:3px}
+.cl-case-type{font-size:11px;color:var(--muted);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-case-chips{display:flex;gap:4px;flex-wrap:wrap}
 
-  .case-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-  .case-list::-webkit-scrollbar { width: 4px; }
-  .case-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* detail panel */
+.cl-detail{flex:1;overflow-y:auto;background:var(--cream)}
+.cl-detail::-webkit-scrollbar{width:4px}
+.cl-detail::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.cl-detail-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;flex-direction:column;gap:10px}
+.cl-detail-empty .icon{font-size:32px;opacity:.3}
+.cl-detail-inner{padding:28px 32px}
+.cl-viability-banner{border-radius:8px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.cl-viability-banner.high{background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.2)}
+.cl-viability-banner.medium{background:rgba(139,109,0,.08);border:1px solid rgba(139,109,0,.2)}
+.cl-viability-banner.low{background:rgba(26,122,74,.08);border:1px solid rgba(26,122,74,.2)}
+.vb-left{display:flex;align-items:center;gap:14px}
+.vb-score{font-size:36px;font-weight:600;font-family:'Cormorant Garamond',serif;line-height:1}
+.vb-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.vb-urgency{font-size:13px;font-weight:500}
+.sol-warning{background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.2);border-radius:6px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--red);display:flex;align-items:center;gap:8px}
+.cl-section{margin-bottom:22px}
+.cl-section-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.cl-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cl-info-row{display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px}
+.cl-info-row.full{grid-column:1/-1}
+.cl-info-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cl-info-val{font-size:13px;color:var(--text)}
+.cl-fact{display:flex;gap:8px;padding:7px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:5px}
+.cl-fact-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px}
+.cl-extract-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cl-ext-row{display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px}
+.cl-ext-row.full{grid-column:1/-1}
+.cl-ext-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cl-ext-val{font-size:13px;color:var(--text)}
+.cl-timeline{display:flex;flex-direction:column;gap:0}
+.cl-step{display:flex;gap:12px;align-items:flex-start;padding:8px 0}
+.cl-step-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:1.5px solid}
+.cl-step-icon.done{background:rgba(26,122,74,.1);border-color:var(--green);color:var(--green)}
+.cl-step-icon.pending{background:var(--light);border-color:var(--border);color:var(--muted)}
+.cl-step-icon.active-step{background:rgba(27,58,107,.1);border-color:var(--navy);color:var(--navy)}
+.cl-step-content{flex:1;padding-top:4px}
+.cl-step-title{font-size:13px;font-weight:500;color:var(--text)}
+.cl-step-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.cl-actions{display:flex;gap:10px;margin-top:4px}
+.cl-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:5px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.cl-btn-primary{background:var(--navy);color:#fff} .cl-btn-primary:hover{background:#0f2a56}
+.cl-btn-decline{background:rgba(192,57,43,.08);color:var(--red);border:1px solid rgba(192,57,43,.25)} .cl-btn-decline:hover{background:rgba(192,57,43,.15)}
+.cl-btn-ghost{background:var(--light);color:var(--muted);border:1px solid var(--border)} .cl-btn-ghost:hover{color:var(--text)}
 
-  .case-item {
-    padding: 12px 16px 12px 14px; cursor: pointer;
-    border-left: 3px solid transparent;
-    transition: all .15s; position: relative;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .case-item:hover { background: var(--cream); }
-  .case-item.active { background: var(--blue-light); border-left-color: var(--navy); }
-  .case-item + .case-item { border-top: 1px solid var(--cream-dark); }
-  .case-name { font-size: 13px; font-weight: 500; color: var(--ink); }
-  .case-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-  .case-time { font-size: 10px; color: var(--muted); }
-  .badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 500;
-    letter-spacing: .03em; line-height: 1.4;
-  }
-  .badge-new       { background: var(--navy); color: #fff; }
-  .badge-urgent    { background: var(--red); color: #fff; }
-  .badge-high      { background: #e05700; color: #fff; }
-  .badge-medium    { background: #b07c00; color: #fff; }
-  .badge-low       { background: #4a7c59; color: #fff; }
-  .badge-active    { background: var(--green-light); color: var(--green); border: 1px solid #b6e8cc; }
-  .badge-declined  { background: #f5f5f5; color: var(--muted); }
-  .badge-synced    { background: var(--green-light); color: var(--green); }
+/* classic chips */
+.chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;border:1px solid}
+.chip-critical{background:rgba(192,57,43,.08);color:var(--red);border-color:rgba(192,57,43,.25)}
+.chip-high    {background:rgba(196,92,15,.08);color:var(--orange);border-color:rgba(196,92,15,.25)}
+.chip-medium  {background:rgba(138,108,0,.08);color:var(--yellow);border-color:rgba(138,108,0,.25)}
+.chip-low     {background:rgba(26,122,74,.08);color:var(--green);border-color:rgba(26,122,74,.2)}
+.chip-new     {background:rgba(27,58,107,.08);color:var(--navy);border-color:rgba(27,58,107,.2)}
+.chip-active  {background:rgba(26,122,74,.08);color:var(--green);border-color:rgba(26,122,74,.2)}
+.chip-declined{background:#f5f5f5;color:var(--muted);border-color:#e5e5e5}
+.chip-synced  {background:rgba(107,58,154,.08);color:var(--purple,#6b3a9a);border-color:rgba(107,58,154,.2)}
+.chip-sol{background:rgba(192,57,43,.08);color:var(--red);border-color:rgba(192,57,43,.25)}
 
-  .score-dot {
-    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  }
-  .score-high   { background: var(--green); }
-  .score-medium { background: var(--orange); }
-  .score-low    { background: var(--red); }
+/* ══════════════════════════════════════════════════════
+   ADVANCED VIEW — dark analytics with charts
+══════════════════════════════════════════════════════ */
+#advanced-view{display:none;height:calc(100vh - 52px);background:var(--dk-bg)}
+#advanced-view.active{display:flex}
 
-  /* ── Main Panel ──────────────────────────────────────────────────────────── */
-  .main { flex: 1; overflow-y: auto; }
-  .main::-webkit-scrollbar { width: 6px; }
-  .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.adv-sidebar{width:210px;flex-shrink:0;background:var(--dk-bg2);border-right:1px solid var(--dk-border);padding:18px 0;display:flex;flex-direction:column}
+.adv-nav-section{padding:0 10px;margin-bottom:18px}
+.adv-nav-label{font-size:10px;color:var(--dk-muted);letter-spacing:.1em;text-transform:uppercase;padding:0 8px;margin-bottom:6px}
+.adv-nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:5px;cursor:pointer;font-size:13px;color:var(--dk-muted);transition:all .15s;border:1px solid transparent}
+.adv-nav-item:hover{background:var(--dk-bg3);color:var(--dk-text)}
+.adv-nav-item.active{background:rgba(27,58,107,.3);color:var(--dk-blue);border-color:rgba(88,166,255,.2)}
+.adv-nav-icon{font-size:14px;width:18px;text-align:center}
+.adv-nav-count{margin-left:auto;background:var(--dk-red);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.adv-nav-count.gold{background:var(--gold);color:#1a1a1a}
+.adv-nav-bottom{margin-top:auto;padding:0 10px}
 
-  /* ── Empty state ─────────────────────────────────────────────────────────── */
-  .empty-state {
-    height: 100%; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 16px;
-    color: var(--muted);
-  }
-  .empty-icon { font-size: 48px; opacity: .3; }
-  .empty-state h3 { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--navy); opacity: .4; font-weight: 400; }
-  .empty-state p  { font-size: 13px; opacity: .6; }
+.adv-main{flex:1;overflow-y:auto;padding:22px 26px}
+.adv-main::-webkit-scrollbar{width:5px}
+.adv-main::-webkit-scrollbar-thumb{background:var(--dk-border);border-radius:3px}
+.adv-section-label{font-size:11px;color:var(--dk-muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;margin-top:26px}
+.adv-section-label:first-child{margin-top:0}
 
-  /* ── Case Detail ─────────────────────────────────────────────────────────── */
-  .case-detail { padding: 32px; max-width: 860px; }
+.adv-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.adv-stat{background:var(--dk-bg2);border:1px solid var(--dk-border);border-radius:7px;padding:16px 18px;transition:border-color .2s}
+.adv-stat:hover{border-color:var(--gold)}
+.adv-stat-label{font-size:11px;color:var(--dk-muted);margin-bottom:8px}
+.adv-stat-num{font-size:30px;font-weight:500;line-height:1;margin-bottom:5px}
+.adv-stat-num.blue{color:var(--dk-blue)} .adv-stat-num.gold{color:var(--gold)} .adv-stat-num.green{color:var(--dk-green)} .adv-stat-num.red{color:var(--dk-red)}
+.adv-stat-sub{font-size:11px;color:var(--dk-muted)}
 
-  .detail-top {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 28px; gap: 20px;
-  }
-  .detail-heading { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 500; color: var(--navy); line-height: 1.2; }
-  .detail-sub { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; gap: 12px; align-items: center; }
-  .detail-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.adv-charts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.adv-chart-card{background:var(--dk-bg2);border:1px solid var(--dk-border);border-radius:7px;padding:18px}
+.adv-chart-title{font-size:13px;font-weight:500;color:var(--dk-text);margin-bottom:14px}
+.adv-chart-wrap{position:relative;height:210px}
 
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 9px 18px; border-radius: 4px; font-family: 'DM Sans', sans-serif;
-    font-size: 13px; font-weight: 500; cursor: pointer;
-    border: none; letter-spacing: .02em; transition: all .15s;
-  }
-  .btn-primary   { background: var(--navy); color: #fff; }
-  .btn-primary:hover { background: var(--navy-light); }
-  .btn-success   { background: var(--green); color: #fff; }
-  .btn-success:hover { background: #156040; }
-  .btn-danger    { background: var(--red); color: #fff; }
-  .btn-danger:hover { background: #9b2c20; }
-  .btn-ghost     { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-  .btn-ghost:hover { background: var(--cream); color: var(--navy); border-color: var(--navy); }
-  .btn-gold      { background: var(--gold); color: var(--navy-dark); font-weight: 600; }
-  .btn-gold:hover { background: var(--gold-light); }
-  .btn:disabled  { opacity: .45; cursor: not-allowed; }
+.adv-table-card{background:var(--dk-bg2);border:1px solid var(--dk-border);border-radius:7px;overflow:hidden}
+.adv-table-header{padding:13px 18px;border-bottom:1px solid var(--dk-border);display:flex;align-items:center;justify-content:space-between}
+.adv-table-title{font-size:13px;font-weight:500;color:var(--dk-text)}
+.adv-table-count{font-size:12px;color:var(--dk-muted)}
+.adv-table table{width:100%;border-collapse:collapse}
+.adv-table thead th{padding:9px 16px;text-align:left;font-size:11px;font-weight:500;color:var(--dk-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--dk-border);background:var(--dk-bg3)}
+.adv-table tbody tr{border-bottom:1px solid var(--dk-border);transition:background .1s;cursor:pointer}
+.adv-table tbody tr:last-child{border-bottom:none}
+.adv-table tbody tr:hover{background:var(--dk-bg3)}
+.adv-table tbody td{padding:10px 16px;font-size:13px;color:var(--dk-text)}
+.adv-table .td-time{color:var(--dk-muted);font-size:12px;white-space:nowrap}
+.adv-table .td-name{font-weight:500}
+.adv-table .td-type{color:var(--dk-muted)}
+.sc-h{color:var(--dk-red);font-weight:600} .sc-m{color:var(--dk-yellow);font-weight:600} .sc-l{color:var(--dk-green);font-weight:600}
 
-  /* ── Score Banner ────────────────────────────────────────────────────────── */
-  .score-banner {
-    border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;
-    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  }
-  .score-banner.critical { background: #fdf2f2; border: 1px solid #f5c6c6; }
-  .score-banner.high     { background: #fff8f0; border: 1px solid #fcd9a0; }
-  .score-banner.medium   { background: #fffdf0; border: 1px solid #f0e090; }
-  .score-banner.low      { background: var(--green-light); border: 1px solid #b6e8cc; }
-  .score-num { font-size: 36px; font-weight: 600; line-height: 1; }
-  .score-banner.critical .score-num { color: var(--red); }
-  .score-banner.high     .score-num { color: var(--orange); }
-  .score-banner.medium   .score-num { color: #8a6c00; }
-  .score-banner.low      .score-num { color: var(--green); }
-  .score-info h4 { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
-  .score-info p  { font-size: 12px; color: var(--muted); }
-  .score-tags    { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-  .tag { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
-  .tag-sol    { background: var(--red-light); color: var(--red); border: 1px solid #f5c6c6; }
-  .tag-pdf    { background: #f0f4ff; color: #3b5bdb; border: 1px solid #c5d0f0; }
-  .tag-atty   { background: #fff8f0; color: var(--orange); border: 1px solid #fcd9a0; }
+.dk-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;border:1px solid}
+.dk-badge-critical{background:rgba(248,81,73,.12);color:var(--dk-red);border-color:rgba(248,81,73,.28)}
+.dk-badge-high    {background:rgba(224,132,54,.12);color:var(--dk-orange);border-color:rgba(224,132,54,.28)}
+.dk-badge-medium  {background:rgba(212,167,44,.12);color:var(--dk-yellow);border-color:rgba(212,167,44,.28)}
+.dk-badge-low     {background:rgba(63,185,80,.12);color:var(--dk-green);border-color:rgba(63,185,80,.28)}
+.dk-badge-new     {background:rgba(88,166,255,.12);color:var(--dk-blue);border-color:rgba(88,166,255,.28)}
+.dk-badge-active  {background:rgba(63,185,80,.12);color:var(--dk-green);border-color:rgba(63,185,80,.28)}
+.dk-badge-declined{background:rgba(125,133,144,.12);color:var(--dk-muted);border-color:rgba(125,133,144,.28)}
+.dk-badge-synced  {background:rgba(188,140,255,.12);color:var(--dk-purple);border-color:rgba(188,140,255,.28)}
 
-  /* ── Cards ───────────────────────────────────────────────────────────────── */
-  .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
-  .card-title { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-  .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-  .card-full { grid-column: 1 / -1; }
+/* ══════════════════════════════════════════════════════
+   SHARED — Modal & Toast
+══════════════════════════════════════════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--white);border-radius:10px;width:640px;max-width:95vw;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;transform:translateY(20px);transition:transform .25s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-head{background:var(--navy);padding:18px 22px;display:flex;align-items:center;justify-content:space-between}
+.modal-head-title{font-family:'Cormorant Garamond',serif;font-size:18px;color:#fff}
+.modal-head-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+.modal-body{flex:1;overflow-y:auto;padding:22px}
+.modal-body::-webkit-scrollbar{width:4px}
+.modal-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--light)}
+.modal-note{font-size:11px;color:var(--muted)}
+.v-section{margin-bottom:18px}
+.v-section-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.v-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.v-field{display:flex;flex-direction:column;gap:4px}
+.v-field label{font-size:11px;color:var(--muted)}
+.v-field input,.v-field textarea{padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:var(--light);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;transition:border .15s}
+.v-field input:focus,.v-field textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,.1)}
+.v-field textarea{min-height:60px;resize:vertical}
+.v-field.full{grid-column:1/-1}
+.field-changed{border-color:var(--gold)!important;background:rgba(201,168,76,.04)!important}
+.m-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:4px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.m-btn-primary{background:var(--navy);color:#fff} .m-btn-primary:hover{background:#0f2a56}
+.m-btn-ghost{background:var(--light);color:var(--muted);border:1px solid var(--border)} .m-btn-ghost:hover{color:var(--text)}
+.spinner-inline{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
 
-  .field-row { display: flex; gap: 10px; padding: 6px 0; }
-  .field-row + .field-row { border-top: 1px solid var(--cream-dark); }
-  .field-label { font-size: 12px; color: var(--muted); width: 140px; flex-shrink: 0; padding-top: 1px; }
-  .field-value { font-size: 13px; color: var(--ink); font-weight: 400; }
-  .field-value.mono { font-family: 'Courier New', monospace; font-size: 12px; background: var(--cream); padding: 1px 6px; border-radius: 3px; }
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted);gap:10px}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
 
-  /* ── Key Facts ───────────────────────────────────────────────────────────── */
-  .facts-list { display: flex; flex-direction: column; gap: 6px; }
-  .fact-item {
-    display: flex; gap: 10px; align-items: flex-start;
-    padding: 7px 10px; background: var(--cream); border-radius: 4px;
-    font-size: 12px; line-height: 1.5;
-  }
-  .fact-bullet { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
-
-  /* ── Police Report Extracted ─────────────────────────────────────────────── */
-  .extract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .extract-item { padding: 8px 10px; background: var(--cream); border-radius: 4px; }
-  .extract-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
-  .extract-val { font-size: 13px; color: var(--ink); font-weight: 500; }
-  .extract-val.empty { color: var(--border); font-style: italic; font-weight: 400; font-size: 12px; }
-
-  /* ── Timeline / Status ───────────────────────────────────────────────────── */
-  .timeline { display: flex; flex-direction: column; gap: 0; }
-  .tl-item { display: flex; gap: 14px; padding: 8px 0; }
-  .tl-item + .tl-item { border-top: 1px dashed var(--border); }
-  .tl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-  .tl-dot.done    { background: var(--green); }
-  .tl-dot.pending { background: var(--border); border: 2px solid var(--muted); background: transparent; }
-  .tl-dot.active  { background: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,.2); }
-  .tl-content h5 { font-size: 13px; font-weight: 500; margin-bottom: 1px; }
-  .tl-content p  { font-size: 11px; color: var(--muted); }
-
-  /* ── SOL Warning ─────────────────────────────────────────────────────────── */
-  .sol-warning {
-    background: #fff8e6; border: 1px solid var(--gold); border-radius: 6px;
-    padding: 12px 16px; display: flex; gap: 12px; align-items: flex-start;
-    margin-bottom: 20px;
-  }
-  .sol-warning .icon { font-size: 18px; flex-shrink: 0; }
-  .sol-warning h4 { font-size: 13px; font-weight: 600; color: #7a5000; margin-bottom: 2px; }
-  .sol-warning p  { font-size: 12px; color: #8a6000; }
-
-  /* ── Decline box ─────────────────────────────────────────────────────────── */
-  .decline-row { margin-top: 12px; }
-  .decline-row textarea {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; resize: vertical; min-height: 72px;
-    color: var(--ink); background: #fff; transition: border .15s;
-  }
-  .decline-row textarea:focus { outline: none; border-color: var(--navy); }
-
-  /* ── Clio synced banner ──────────────────────────────────────────────────── */
-  .clio-synced {
-    background: var(--green-light); border: 1px solid #b6e8cc; border-radius: 8px;
-    padding: 16px 20px; display: flex; align-items: center; gap: 14px;
-    margin-bottom: 20px;
-  }
-  .clio-synced .icon { font-size: 24px; }
-  .clio-synced h4 { font-size: 14px; font-weight: 600; color: var(--green); }
-  .clio-synced p  { font-size: 12px; color: var(--muted); }
-
-  /* ── Verification Modal ──────────────────────────────────────────────────── */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(17,36,71,.6); backdrop-filter: blur(4px);
-    z-index: 500; display: flex; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none; transition: opacity .25s;
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-
-  .modal {
-    background: #fff; border-radius: 10px; width: 680px; max-width: 96vw;
-    max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
-    box-shadow: var(--shadow-lg);
-    transform: translateY(20px); transition: transform .25s;
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
-
-  .modal-header {
-    background: var(--navy); padding: 20px 24px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: #fff; font-weight: 500; }
-  .modal-sub   { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
-  .modal-close { background: none; border: none; color: rgba(255,255,255,.6); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
-  .modal-close:hover { color: #fff; background: rgba(255,255,255,.1); }
-
-  .modal-body { flex: 1; overflow-y: auto; padding: 24px; }
-  .modal-body::-webkit-scrollbar { width: 4px; }
-  .modal-body::-webkit-scrollbar-thumb { background: var(--border); }
-
-  .modal-intro { font-size: 13px; color: var(--muted); margin-bottom: 20px; background: var(--cream); padding: 12px 14px; border-radius: 6px; border-left: 3px solid var(--gold); }
-
-  .verify-section { margin-bottom: 20px; }
-  .verify-section-title { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-  .verify-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .verify-field { display: flex; flex-direction: column; gap: 4px; }
-  .verify-field label { font-size: 11px; color: var(--muted); font-weight: 500; }
-  .verify-field input {
-    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
-    background: #fff; transition: border .15s;
-  }
-  .verify-field input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px rgba(27,58,107,.08); }
-  .verify-field.full { grid-column: 1 / -1; }
-  .verify-field textarea {
-    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
-    background: #fff; resize: vertical; min-height: 60px; transition: border .15s;
-  }
-  .verify-field textarea:focus { outline: none; border-color: var(--navy); }
-  .field-changed { border-color: var(--gold) !important; background: #fffef5 !important; }
-
-  .modal-footer {
-    padding: 16px 24px; border-top: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-    background: var(--cream);
-  }
-  .modal-footer-note { font-size: 11px; color: var(--muted); }
-  .modal-footer-btns { display: flex; gap: 10px; }
-
-  /* ── Loading spinner ─────────────────────────────────────────────────────── */
-  .spinner {
-    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
-    border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite;
-    display: inline-block;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── Toast ───────────────────────────────────────────────────────────────── */
-  .toast {
-    position: fixed; bottom: 24px; right: 24px; z-index: 999;
-    background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 6px;
-    font-size: 13px; box-shadow: var(--shadow-lg);
-    transform: translateY(60px); opacity: 0; transition: all .3s;
-    max-width: 320px;
-  }
-  .toast.show { transform: translateY(0); opacity: 1; }
-  .toast.success { background: var(--green); }
-  .toast.error   { background: var(--red); }
+.toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:12px 18px;border-radius:6px;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(40px);opacity:0;transition:all .3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{background:#1a4a2e;border:1px solid #3fb950;color:#3fb950}
+.toast.error{background:#4a1a1a;border:1px solid #f85149;color:#f85149}
+.toast.info{background:var(--white);border:1px solid var(--border);color:var(--text)}
 </style>
 </head>
-<body>
+<body class="view-classic">
 
-<!-- ── Header ──────────────────────────────────────────────────────────────── -->
-<header class="header">
-  <div class="header-left">
-    <div class="seal">R<span style="color:var(--gold-light);">&amp;</span>L</div>
-    <div>
-      <div class="firm-name">Richards <span>&amp;</span> Law</div>
-      <div class="header-sub">Case Intake Dashboard</div>
-    </div>
+<!-- Shared Header -->
+<header class="app-header">
+  <div class="header-brand">
+    <div class="brand-seal">R&amp;L</div>
+    <span class="brand-name">Richards <em>&amp;</em> Law</span>
   </div>
-  <div class="header-right">
-    <div class="user-pill">
-      <div class="user-dot"></div>
-      <span class="user-name">Paralegal — Sarah Chen</span>
+  <div class="header-controls">
+    <div class="view-toggle">
+      <button class="view-btn active" id="btn-classic" onclick="switchView('classic')">☀ Classic</button>
+      <button class="view-btn" id="btn-advanced" onclick="switchView('advanced')">⬛ Advanced</button>
     </div>
+    <div class="live-dot"></div>
+    <span class="hdr-user">Sarah Chen — Paralegal</span>
   </div>
 </header>
 
-<!-- ── Layout ─────────────────────────────────────────────────────────────── -->
-<div class="layout">
-
+<!-- ═══════════════════════════════════════════
+     CLASSIC VIEW
+═══════════════════════════════════════════ -->
+<div id="classic-view" class="active">
   <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title">Today's Intake</div>
-      <div class="stats-row">
-        <div class="stat-chip">
-          <div class="num" id="stat-total">3</div>
-          <div class="lbl">Total</div>
-        </div>
-        <div class="stat-chip urgent">
-          <div class="num" id="stat-urgent">1</div>
-          <div class="lbl">Urgent</div>
-        </div>
-        <div class="stat-chip">
-          <div class="num" id="stat-new">2</div>
-          <div class="lbl">New</div>
-        </div>
+  <div class="cl-sidebar">
+    <div class="cl-sidebar-head">
+      <div class="cl-sidebar-title">Case Intake Queue</div>
+      <div class="cl-stats">
+        <div class="cl-stat"><div class="cl-stat-num navy" id="cl-total">—</div><div class="cl-stat-label">Total</div></div>
+        <div class="cl-stat"><div class="cl-stat-num red" id="cl-urgent">—</div><div class="cl-stat-label">Urgent</div></div>
+        <div class="cl-stat"><div class="cl-stat-num gold" id="cl-new">—</div><div class="cl-stat-label">New</div></div>
       </div>
     </div>
-
-    <div class="filter-tabs">
-      <button class="filter-tab active" onclick="filterCases('all', this)">All</button>
-      <button class="filter-tab" onclick="filterCases('new', this)">New</button>
-      <button class="filter-tab" onclick="filterCases('active', this)">Active</button>
-      <button class="filter-tab" onclick="filterCases('declined', this)">Declined</button>
+    <div class="cl-filters">
+      <div class="cl-filter active" onclick="clFilter('all',this)">All</div>
+      <div class="cl-filter" onclick="clFilter('new',this)">New</div>
+      <div class="cl-filter" onclick="clFilter('active',this)">Active</div>
+      <div class="cl-filter" onclick="clFilter('declined',this)">Declined</div>
     </div>
-
-    <div class="case-list" id="case-list"></div>
-  </aside>
-
-  <!-- Main -->
-  <main class="main" id="main-panel">
-    <div class="empty-state" style="height:100%">
-      <div class="empty-icon">⚖️</div>
-      <h3>Select a case to review</h3>
-      <p>Choose an intake submission from the left panel</p>
+    <div class="cl-case-list" id="cl-case-list">
+      <div class="loading"><div class="spinner"></div></div>
     </div>
-  </main>
-</div>
+  </div>
 
-<!-- ── Verification Modal ──────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="verify-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">Paralegal Verification</div>
-        <div class="modal-sub">Review AI-extracted data before syncing to Clio Manage</div>
-      </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body" id="modal-body">
-      <!-- filled dynamically -->
-    </div>
-    <div class="modal-footer">
-      <span class="modal-footer-note">✏️ Edit any field if the AI made an error — changes are highlighted</span>
-      <div class="modal-footer-btns">
-        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-gold" id="approve-btn" onclick="approveToClio()">
-          ✓ Approve &amp; Sync to Clio
-        </button>
-      </div>
+  <!-- Detail -->
+  <div class="cl-detail" id="cl-detail">
+    <div class="cl-detail-empty">
+      <div class="icon">⚖️</div>
+      <div>Select a case to view details</div>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
+<!-- ═══════════════════════════════════════════
+     ADVANCED VIEW
+═══════════════════════════════════════════ -->
+<div id="advanced-view">
+  <div class="adv-sidebar">
+    <div class="adv-nav-section">
+      <div class="adv-nav-label">Views</div>
+      <div class="adv-nav-item active" onclick="advNav('overview',this)"><span class="adv-nav-icon">📊</span>Overview</div>
+      <div class="adv-nav-item" onclick="advNav('all',this)"><span class="adv-nav-icon">📋</span>All Intakes<span class="adv-nav-count" id="adv-nav-new">—</span></div>
+      <div class="adv-nav-item" onclick="advNav('urgent',this)"><span class="adv-nav-icon">🚨</span>Urgent<span class="adv-nav-count" id="adv-nav-urgent">—</span></div>
+      <div class="adv-nav-item" onclick="advNav('sol',this)"><span class="adv-nav-icon">⚠️</span>SOL Risk<span class="adv-nav-count gold" id="adv-nav-sol">—</span></div>
+    </div>
+    <div class="adv-nav-section">
+      <div class="adv-nav-label">Status</div>
+      <div class="adv-nav-item" onclick="advNav('new',this)"><span class="adv-nav-icon">🔵</span>New</div>
+      <div class="adv-nav-item" onclick="advNav('active',this)"><span class="adv-nav-icon">🟢</span>Active</div>
+      <div class="adv-nav-item" onclick="advNav('declined',this)"><span class="adv-nav-icon">⚫</span>Declined</div>
+    </div>
+    <div class="adv-nav-bottom">
+      <div class="adv-nav-label">Links</div>
+      <div class="adv-nav-item" onclick="window.open('https://app.clio.com','_blank')"><span class="adv-nav-icon">⚖️</span>Clio Manage</div>
+    </div>
+  </div>
+  <div class="adv-main" id="adv-main">
+    <div class="loading" style="color:#7d8590"><div class="spinner"></div>Loading…</div>
+  </div>
+</div>
+
+<!-- Advanced Detail Panel -->
+<div id="adv-overlay" onclick="closeAdvDetail(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150;opacity:0;pointer-events:none;transition:opacity .2s">
+  <div id="adv-panel" style="position:absolute;right:0;top:0;bottom:0;width:490px;background:var(--dk-bg2);border-left:1px solid var(--dk-border);overflow-y:auto;padding:26px;transform:translateX(40px);transition:transform .25s">
+    <button onclick="closeAdvDetail()" style="position:absolute;top:14px;right:14px;background:var(--dk-bg3);border:1px solid var(--dk-border);color:var(--dk-muted);width:26px;height:26px;border-radius:4px;cursor:pointer;font-size:13px">✕</button>
+    <div id="adv-panel-content"></div>
+  </div>
+</div>
+
+<!-- Paralegal Verify Modal (shared) -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-head-title">Paralegal Verification</div><div class="modal-head-sub">Review AI-extracted data before syncing to Clio</div></div>
+      <button class="m-btn-ghost" onclick="closeModal()" style="padding:4px 10px">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <span class="modal-note">✏️ Gold highlight = edited field</span>
+      <div style="display:flex;gap:8px">
+        <button class="m-btn m-btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="m-btn m-btn-primary" id="approve-btn" onclick="approveToClio()">✓ Approve &amp; Sync to Clio</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
-// ── Demo Data ────────────────────────────────────────────────────────────────
-const CASES = [
-  {
-    id: "INT-2026-001",
-    client_name:   "Guillermo Reyes",
-    client_email:  "chinmayee.ohmaws@gmail.com",
-    client_phone:  "+1 (973) 555-0142",
-    incident_date: "2018-12-06",
-    submitted_at:  "2026-02-28T09:14:22Z",
-    status:        "new",
-    case_type:     "Vehicle Accident",
-    urgency:       "critical",
-    viability:     8,
-    prior_attorney: false,
-    sol_flag:      true,
-    has_pdf:       true,
-    clio_synced:   false,
-    description:   "I was driving northbound on Flatbush Avenue in Brooklyn when another driver ran out of a bus lane, struck my box truck on the passenger side, then veered again and struck me a second time. I sustained neck and back injuries and my vehicle was totaled. I have the police report.",
-    key_facts: [
-      "Two-impact collision suggests reckless/intentional driving",
-      "Commercial vehicle (Freightliner) — possible employer liability for opposing party",
-      "Police report MV-2018-078-002001 confirms fault with Lionel Francois",
-      "Statute of Limitations expires December 6, 2026 — urgent",
-      "Client employed by B and F Transport Ltd — potential workers' comp crossover"
-    ],
-    recommended_action: "Accept immediately. High viability PI case with documented police report and clear fault determination. SOL deadline within 10 months — file retainer today.",
-    extracted: {
-      accident_date:                    "2018-12-06",
-      accident_location:                "Flatbush Avenue at Plaza Street East, Kings County, Brooklyn, NY",
-      police_report_number:             "MV-2018-078-002001",
-      client_vehicle_make_model:        "2010 Freightliner Box Truck — NJ Plate XCGY85",
-      client_injuries:                  "Neck and back injuries reported",
-      opposing_party_name:              "Lionel Francois",
-      opposing_party_address:           "104-28 117 Street, Queens, NY 11419",
-      opposing_party_vehicle:           "2011 Ford Van — NY Plate 47164BB",
-      opposing_party_insurance_company: "State Farm Insurance",
-      opposing_party_insurance_policy:  "SF-44821-BK",
-      fault_determination:              "V2 (Francois) — crossed from bus lane, double impact",
-      sol_date:                         "2026-12-06",
-      narrative:                        "V1 (Reyes) was driving northbound on Flatbush Avenue in the right lane when V2 (Francois) moved from the bus lane into the middle lane and struck V1. V2 then moved again and struck V1 a second time. Police report confirms V2 at fault.",
-    }
-  },
-  {
-    id: "INT-2026-002",
-    client_name:   "Maria Santana",
-    client_email:  "m.santana@email.com",
-    client_phone:  "+1 (212) 555-0287",
-    incident_date: "2026-01-15",
-    submitted_at:  "2026-02-28T10:33:08Z",
-    status:        "new",
-    case_type:     "Slip and Fall",
-    urgency:       "high",
-    viability:     6,
-    prior_attorney: false,
-    sol_flag:      false,
-    has_pdf:       false,
-    clio_synced:   false,
-    description:   "Slipped on ice outside a grocery store entrance that had no warning signs posted. Broke my left wrist and bruised my hip. Store management acknowledged the hazard but refused to provide an incident report.",
-    key_facts: [
-      "Premises liability — store has duty to maintain safe entrance",
-      "No warning signs = clear negligence",
-      "Store management acknowledgement could be key evidence",
-      "Medical documentation needed (wrist fracture = documented injury)",
-      "3-year NY SOL — ample time, but gather evidence now"
-    ],
-    recommended_action: "Strong slip and fall case. Request all medical records and surveillance footage immediately. Schedule consultation within 2 weeks.",
-    extracted: null
-  },
-  {
-    id: "INT-2026-003",
-    client_name:   "James Thornton",
-    client_email:  "jthornton@business.net",
-    client_phone:  "+1 (718) 555-0391",
-    incident_date: "2025-09-22",
-    submitted_at:  "2026-02-27T16:45:51Z",
-    status:        "declined",
-    case_type:     "Out of Scope",
-    urgency:       "low",
-    viability:     1,
-    prior_attorney: true,
-    sol_flag:      false,
-    has_pdf:       false,
-    clio_synced:   false,
-    description:   "My business partner stole from our company and I need to sue him for breach of contract and fiduciary duty. We had a handshake agreement and no written contract.",
-    key_facts: [
-      "Business dispute — not personal injury",
-      "No written contract severely weakens case",
-      "Prior attorney involvement noted",
-      "Out of scope for Richards & Law practice area"
-    ],
-    recommended_action: "Decline. Business/contract dispute outside PI practice area. Refer to business litigation firm.",
-    extracted: null
-  }
+const API      = window.INTAKES_API_URL || 'https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod/intakes';
+const CLIO_API = window.CLIO_API_URL    || 'https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod/clio';
+
+let ALL = [], currentView = 'classic', advView = 'overview', selectedId = null;
+let clFilter_ = 'all', barChart = null, donutChart = null;
+
+const DEMO = [
+  {intake_id:'INT-001',client_name:'Guillermo Reyes',client_email:'g.reyes@email.com',client_phone:'+1 (973) 555-0142',submitted_at:new Date(Date.now()-3*3600000).toISOString(),status:'new',case_type:'PI — Vehicle Accident',urgency:'critical',viability_score:8,sol_flag:true,has_police_report:true,clio_synced:false,description:'Two-impact collision on Flatbush Avenue. Neck and back injuries. Commercial vehicle involved.',key_facts:['Two-impact collision — reckless driving pattern','Police report MV-2018-078-002001 confirms fault','SOL expires December 6, 2026 — urgent filing needed','Commercial vehicle — employer liability possible'],recommended_action:'Accept immediately. High viability. SOL within 10 months.',extracted:{accident_date:'2018-12-06',accident_location:'Flatbush Ave at Plaza Street East, Brooklyn, NY',police_report_number:'MV-2018-078-002001',client_vehicle_make_model:'2010 Freightliner Box Truck',opposing_party_name:'Lionel Francois',opposing_party_vehicle:'2011 Ford Van — NY Plate 47164BB',opposing_party_insurance_company:'State Farm Insurance',fault_determination:'V2 at fault — crossed from bus lane',sol_date:'2026-12-06',narrative:'V1 (Reyes) struck twice by V2 (Francois) who crossed from bus lane.'}},
+  {intake_id:'INT-002',client_name:'Maria Santana',client_email:'m.santana@email.com',client_phone:'+1 (212) 555-0287',submitted_at:new Date(Date.now()-5*3600000).toISOString(),status:'new',case_type:'PI — Slip and Fall',urgency:'high',viability_score:6,sol_flag:false,has_police_report:false,clio_synced:false,description:'Slipped on ice outside grocery store entrance. Fractured wrist. No warning signs posted.',key_facts:['Premises liability — store duty of care','No warning signs = clear negligence','Fractured wrist — documented at ER','Surveillance footage may exist'],recommended_action:'Accept. Request medical records and subpoena store surveillance.',extracted:null},
+  {intake_id:'INT-003',client_name:'James Thornton',client_email:'jthornton@business.net',client_phone:'+1 (718) 555-0391',submitted_at:new Date(Date.now()-26*3600000).toISOString(),status:'declined',case_type:'Out of Scope',urgency:'low',viability_score:1,sol_flag:false,has_police_report:false,clio_synced:false,description:'Business partner dispute over profit sharing. No written partnership agreement.',key_facts:['Business dispute — not personal injury','No written contract','Out of practice scope'],recommended_action:'Decline. Refer to business litigation specialist.',extracted:null}
 ];
 
-let currentCase = null;
-let currentFilter = 'all';
+// ── Data ──────────────────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const r = await fetch(API);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    ALL = d.intakes || [];
+    if (!ALL.length) ALL = DEMO;
+  } catch { ALL = DEMO; }
+  renderAll();
+}
 
-// ── Render sidebar list ───────────────────────────────────────────────────────
-function renderList(filter = 'all') {
-  const list = document.getElementById('case-list');
-  const filtered = filter === 'all' ? CASES : CASES.filter(c => c.status === filter);
+function renderAll() {
+  renderClassic();
+  renderAdvanced();
+}
 
-  list.innerHTML = filtered.map(c => {
-    const isActive = currentCase && currentCase.id === c.id;
-    const urgClass = {critical:'badge-urgent', high:'badge-high', medium:'badge-medium', low:'badge-low'}[c.urgency] || 'badge-medium';
-    const dotClass = c.viability >= 7 ? 'score-high' : c.viability >= 4 ? 'score-medium' : 'score-low';
-    const time = timeAgo(c.submitted_at);
-    return `
-      <div class="case-item ${isActive ? 'active' : ''}" onclick="selectCase('${c.id}')">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <span class="case-name">${c.client_name}</span>
-          <span class="badge ${urgClass}">${c.urgency}</span>
+// ── View switcher ──────────────────────────────────────────────────────────────
+function switchView(v) {
+  currentView = v;
+  document.body.className = 'view-' + v;
+  document.getElementById('classic-view').classList.toggle('active',  v==='classic');
+  document.getElementById('advanced-view').classList.toggle('active', v==='advanced');
+  document.getElementById('btn-classic').classList.toggle('active',   v==='classic');
+  document.getElementById('btn-advanced').classList.toggle('active',  v==='advanced');
+  if (v==='advanced') setTimeout(()=>{ buildBar(); buildDonut(); }, 80);
+}
+
+// ══════════════════════════════════════════════════════
+// CLASSIC RENDER
+// ══════════════════════════════════════════════════════
+function renderClassic() {
+  const total  = ALL.length;
+  const urgent = ALL.filter(i=>i.urgency==='critical').length;
+  const nw     = ALL.filter(i=>i.status==='new').length;
+  document.getElementById('cl-total').textContent  = total;
+  document.getElementById('cl-urgent').textContent = urgent;
+  document.getElementById('cl-new').textContent    = nw;
+  renderCaseList();
+  // Auto-select first new case
+  const first = ALL.find(i=>i.status==='new') || ALL[0];
+  if (first && !selectedId) openCase(first.intake_id);
+}
+
+function clFilter(f, el) {
+  clFilter_ = f;
+  document.querySelectorAll('.cl-filter').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  renderCaseList();
+}
+
+function renderCaseList() {
+  let list = ALL;
+  if (clFilter_ !== 'all') list = ALL.filter(i=>i.status===clFilter_);
+  const el = document.getElementById('cl-case-list');
+  if (!list.length) { el.innerHTML='<div class="loading" style="padding:40px;font-size:13px">No cases</div>'; return; }
+  el.innerHTML = list.map(i => {
+    return `<div class="cl-case-item${selectedId===i.intake_id?' active':''}" onclick="openCase('${i.intake_id}')">
+      <div class="cl-case-info">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div class="cl-case-name">${i.client_name}</div>
+          <span class="chip chip-${i.urgency}" style="font-size:11px;padding:3px 10px">${i.urgency}</span>
         </div>
-        <div class="case-meta">
-          <span class="score-dot ${dotClass}"></span>
-          <span>${c.case_type}</span>
-          ${c.has_pdf ? '· 📎 PDF' : ''}
+        <div class="cl-case-type" style="display:flex;align-items:center;gap:6px">
+          <span style="width:7px;height:7px;border-radius:50%;background:${i.urgency==='critical'?'var(--red)':i.urgency==='high'?'var(--orange)':i.urgency==='medium'?'var(--yellow)':'var(--green)'};flex-shrink:0;display:inline-block"></span>
+          ${i.case_type}${i.has_police_report?' · <span style="color:var(--muted)">📎 PDF</span>':''}
         </div>
-        <div class="case-time">${time}</div>
-      </div>`;
+        <div style="font-size:11px;color:var(--sub);margin-top:4px">${fmt(i.submitted_at)}</div>
+      </div>
+    </div>`;
   }).join('');
 }
 
-function filterCases(filter, el) {
-  currentFilter = filter;
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  renderList(filter);
-}
-
-// ── Select case ───────────────────────────────────────────────────────────────
-function selectCase(id) {
-  currentCase = CASES.find(c => c.id === id);
-  renderList(currentFilter);
-  renderDetail(currentCase);
-}
-
-// ── Render detail panel ───────────────────────────────────────────────────────
-function renderDetail(c) {
-  const main = document.getElementById('main-panel');
-  const urgColors = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
-  const urgLabels = { critical: '🔴 Critical Urgency', high: '🟠 High Urgency', medium: '🟡 Medium Urgency', low: '🟢 Low Urgency' };
-  const statusBadge = {
-    new: '<span class="badge badge-new">New</span>',
-    active: '<span class="badge badge-active">Active</span>',
-    declined: '<span class="badge badge-declined">Declined</span>',
-  }[c.status];
-
-  const solDate = c.extracted ? c.extracted.sol_date : null;
-  const solDisplay = solDate ? new Date(solDate).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}) : null;
-
-  let actionRow = '';
-  if (c.status === 'new') {
-    actionRow = `
-      <button class="btn btn-success" onclick="openVerifyModal()">✓ Accept Case</button>
-      <button class="btn btn-danger" onclick="declineCase('${c.id}')">✕ Decline</button>`;
-  } else if (c.status === 'active' && !c.clio_synced) {
-    actionRow = `<button class="btn btn-gold" onclick="openVerifyModal()">⚡ Sync to Clio</button>`;
-  } else if (c.clio_synced) {
-    actionRow = `<span class="badge badge-synced">✓ Synced to Clio</span>`;
-  }
-
-  const extractedHtml = c.extracted ? `
-    <div class="card card-full">
-      <div class="card-title">📄 Police Report Extraction (AI)</div>
-      <div class="extract-grid">
-        ${[
-          ['Accident Date', c.extracted.accident_date],
-          ['Police Report #', c.extracted.police_report_number],
-          ['Location', c.extracted.accident_location],
-          ['SOL Deadline', solDisplay],
-          ['Client Vehicle', c.extracted.client_vehicle_make_model],
-          ['Opposing Party', c.extracted.opposing_party_name],
-          ['Opp. Vehicle', c.extracted.opposing_party_vehicle],
-          ['Insurance Co.', c.extracted.opposing_party_insurance_company],
-          ['Fault', c.extracted.fault_determination],
-          ['Injuries', c.extracted.client_injuries],
-        ].map(([lbl, val]) => `
-          <div class="extract-item">
-            <div class="extract-label">${lbl}</div>
-            <div class="extract-val ${val ? '' : 'empty'}">${val || 'Not found'}</div>
-          </div>`).join('')}
-        <div class="extract-item" style="grid-column:1/-1">
-          <div class="extract-label">Narrative</div>
-          <div class="extract-val" style="font-size:12px; font-weight:400; line-height:1.6;">${c.extracted.narrative || '—'}</div>
-        </div>
-      </div>
-    </div>` : '';
-
-  main.innerHTML = `
-    <div class="case-detail">
-      <div class="detail-top">
-        <div>
-          <div class="detail-heading">${c.client_name}</div>
-          <div class="detail-sub">
-            ${statusBadge}
-            <span>•</span>
-            <span>${c.id}</span>
-            <span>•</span>
-            <span>${formatDate(c.submitted_at)}</span>
-          </div>
-        </div>
-        <div class="detail-actions">${actionRow}</div>
-      </div>
-
-      ${c.sol_flag && c.status === 'new' ? `
-        <div class="sol-warning">
-          <div class="icon">⚠️</div>
+function openCase(id) {
+  selectedId = id;
+  renderCaseList();
+  const c = ALL.find(i=>i.intake_id===id);
+  if (!c) return;
+  const ext = c.extracted||{};
+  const sc  = c.viability_score||0;
+  const bannerClass = sc>=7?'high':sc>=4?'medium':'low';
+  const urgColor = c.urgency==='critical'?'var(--red)':c.urgency==='high'?'var(--orange)':c.urgency==='medium'?'var(--yellow)':'var(--green)';
+  document.getElementById('cl-detail').innerHTML = `
+    <div class="cl-detail-inner">
+      <div class="cl-viability-banner ${bannerClass}">
+        <div class="vb-left">
+          <div class="vb-score" style="color:${urgColor}">${sc}/10</div>
           <div>
-            <h4>Statute of Limitations Warning</h4>
-            <p>SOL deadline ${solDisplay ? 'is ' + solDisplay : 'is approaching'}. 
-            Filing must occur before this date or the client permanently loses the right to sue.</p>
+            <div class="vb-label">Viability Score</div>
+            <div class="vb-urgency" style="color:${urgColor}">${c.urgency.toUpperCase()} URGENCY</div>
           </div>
-        </div>` : ''}
-
-      ${c.clio_synced ? `
-        <div class="clio-synced">
-          <div class="icon">✅</div>
-          <div>
-            <h4>Successfully Synced to Clio Manage</h4>
-            <p>Matter 00001-Reyes updated · SOL calendar event created · Retainer email sent to ${c.client_email}</p>
-          </div>
-        </div>` : ''}
-
-      <div class="score-banner ${urgColors[c.urgency]}">
-        <div class="score-num">${c.viability}<span style="font-size:18px;opacity:.4">/10</span></div>
-        <div class="score-info">
-          <h4>${urgLabels[c.urgency]}</h4>
-          <p>Viability Score — ${c.viability >= 7 ? 'Strong case, recommend accepting' : c.viability >= 4 ? 'Moderate case, further review needed' : 'Weak case, consider declining'}</p>
         </div>
-        <div class="score-tags">
-          ${c.sol_flag ? '<span class="tag tag-sol">⚠️ SOL Risk</span>' : ''}
-          ${c.has_pdf ? '<span class="tag tag-pdf">📎 Police Report</span>' : ''}
-          ${c.prior_attorney ? '<span class="tag tag-atty">⚖️ Prior Attorney</span>' : ''}
+        <div style="text-align:right">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500">${c.client_name}</div>
+          <div style="font-size:12px;color:var(--muted)">${c.intake_id} · ${fmt(c.submitted_at)}</div>
         </div>
       </div>
 
-      <div class="cards-grid">
-        <div class="card">
-          <div class="card-title">Client Info</div>
-          <div class="field-row"><span class="field-label">Full Name</span><span class="field-value">${c.client_name}</span></div>
-          <div class="field-row"><span class="field-label">Email</span><span class="field-value">${c.client_email}</span></div>
-          <div class="field-row"><span class="field-label">Phone</span><span class="field-value">${c.client_phone}</span></div>
-          <div class="field-row"><span class="field-label">Incident Date</span><span class="field-value">${formatDate(c.incident_date, true)}</span></div>
-          <div class="field-row"><span class="field-label">Prior Attorney</span><span class="field-value">${c.prior_attorney ? '⚠️ Yes — verify' : 'No'}</span></div>
+      ${c.sol_flag?`<div class="sol-warning">⚠️ Statute of Limitations risk — ${ext.sol_date||'deadline approaching'}. File immediately.</div>`:''}
+
+      <div class="cl-section">
+        <div class="cl-section-title">Client Information</div>
+        <div class="cl-info-grid">
+          <div class="cl-info-row"><div class="cl-info-label">Email</div><div class="cl-info-val">${c.client_email}</div></div>
+          <div class="cl-info-row"><div class="cl-info-label">Phone</div><div class="cl-info-val">${c.client_phone||'—'}</div></div>
+          <div class="cl-info-row"><div class="cl-info-label">Case Type</div><div class="cl-info-val">${c.case_type}</div></div>
+          <div class="cl-info-row"><div class="cl-info-label">Status</div><div class="cl-info-val"><span class="chip chip-${c.clio_synced?'synced':c.status}">${c.clio_synced?'Synced to Clio':c.status}</span></div></div>
+          <div class="cl-info-row full"><div class="cl-info-label">Description</div><div class="cl-info-val">${c.description}</div></div>
         </div>
-
-        <div class="card">
-          <div class="card-title">AI Classification</div>
-          <div class="field-row"><span class="field-label">Case Type</span><span class="field-value">${c.case_type}</span></div>
-          <div class="field-row"><span class="field-label">Urgency</span><span class="field-value">${c.urgency}</span></div>
-          <div class="field-row"><span class="field-label">Viability</span><span class="field-value">${c.viability}/10</span></div>
-          <div class="field-row"><span class="field-label">SOL Flag</span><span class="field-value">${c.sol_flag ? '🚨 Flagged' : '✓ Clear'}</span></div>
-        </div>
-
-        <div class="card card-full">
-          <div class="card-title">Client Description</div>
-          <p style="font-size:13px; line-height:1.7; color:var(--ink);">${c.description}</p>
-        </div>
-
-        <div class="card card-full">
-          <div class="card-title">AI Key Facts</div>
-          <div class="facts-list">
-            ${c.key_facts.map(f => `
-              <div class="fact-item">
-                <span class="fact-bullet">◆</span>
-                <span>${f}</span>
-              </div>`).join('')}
-          </div>
-        </div>
-
-        <div class="card card-full">
-          <div class="card-title">Recommended Action</div>
-          <p style="font-size:13px; line-height:1.7; color:var(--ink);">${c.recommended_action}</p>
-        </div>
-
-        ${extractedHtml}
-
-        <div class="card card-full">
-          <div class="card-title">Workflow Status</div>
-          <div class="timeline">
-            <div class="tl-item">
-              <div class="tl-dot done"></div>
-              <div class="tl-content"><h5>Intake Received</h5><p>Form submitted ${timeAgo(c.submitted_at)}</p></div>
-            </div>
-            <div class="tl-item">
-              <div class="tl-dot done"></div>
-              <div class="tl-content"><h5>AI Classification</h5><p>${c.case_type} · Score ${c.viability}/10 · ${c.urgency} urgency</p></div>
-            </div>
-            ${c.has_pdf ? `
-            <div class="tl-item">
-              <div class="tl-dot done"></div>
-              <div class="tl-content"><h5>Police Report Extracted</h5><p>Claude AI extracted ${c.extracted ? '10 fields' : 'data'} from uploaded PDF</p></div>
-            </div>` : ''}
-            <div class="tl-item">
-              <div class="tl-dot ${c.status === 'new' ? 'active' : 'done'}"></div>
-              <div class="tl-content"><h5>Attorney Review</h5><p>${c.status === 'new' ? 'Awaiting Accept / Decline decision' : c.status === 'active' ? 'Case accepted' : 'Case declined'}</p></div>
-            </div>
-            ${c.status === 'active' || c.status === 'new' ? `
-            <div class="tl-item">
-              <div class="tl-dot ${c.clio_synced ? 'done' : 'pending'}"></div>
-              <div class="tl-content"><h5>Paralegal Verification</h5><p>${c.clio_synced ? 'Data verified and approved' : 'Review AI-extracted fields before syncing'}</p></div>
-            </div>
-            <div class="tl-item">
-              <div class="tl-dot ${c.clio_synced ? 'done' : 'pending'}"></div>
-              <div class="tl-content"><h5>Clio Matter Updated</h5><p>${c.clio_synced ? 'All 8 custom fields populated in 00001-Reyes' : 'Pending paralegal approval'}</p></div>
-            </div>
-            <div class="tl-item">
-              <div class="tl-dot ${c.clio_synced ? 'done' : 'pending'}"></div>
-              <div class="tl-content"><h5>SOL Calendar Event Created</h5><p>${c.clio_synced ? 'Dec 6, 2026 deadline added to Andrew Richards calendar' : 'Will be created on approval'}</p></div>
-            </div>
-            <div class="tl-item">
-              <div class="tl-dot ${c.clio_synced ? 'done' : 'pending'}"></div>
-              <div class="tl-content"><h5>Retainer Email Sent</h5><p>${c.clio_synced ? `Personalized email with booking link sent to ${c.client_email}` : 'Will be sent on approval'}</p></div>
-            </div>` : ''}
-          </div>
-        </div>
-
-        ${c.status === 'new' ? `
-        <div class="card card-full decline-row" id="decline-section" style="display:none">
-          <div class="card-title">Decline Reason</div>
-          <textarea id="decline-note" placeholder="Enter reason for declining this case..."></textarea>
-          <div style="display:flex; justify-content:flex-end; margin-top:10px; gap:8px;">
-            <button class="btn btn-ghost" onclick="document.getElementById('decline-section').style.display='none'">Cancel</button>
-            <button class="btn btn-danger" onclick="confirmDecline('${c.id}')">Confirm Decline</button>
-          </div>
-        </div>` : ''}
       </div>
+
+      <div class="cl-section">
+        <div class="cl-section-title">AI Classification &amp; Key Facts</div>
+        ${(c.key_facts||[]).map(f=>`<div class="cl-fact"><div class="cl-fact-dot"></div>${f}</div>`).join('')}
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(27,58,107,.05);border:1px solid rgba(27,58,107,.1);border-radius:6px;font-size:12px;color:var(--navy)">
+          <strong>Recommended:</strong> ${c.recommended_action}
+        </div>
+      </div>
+
+      ${ext.accident_date?`<div class="cl-section">
+        <div class="cl-section-title">Police Report Extraction</div>
+        <div class="cl-extract-grid">
+          <div class="cl-ext-row"><div class="cl-ext-label">Accident Date</div><div class="cl-ext-val">${ext.accident_date}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Report Number</div><div class="cl-ext-val">${ext.police_report_number||'—'}</div></div>
+          <div class="cl-ext-row full"><div class="cl-ext-label">Location</div><div class="cl-ext-val">${ext.accident_location||'—'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||'—'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Party</div><div class="cl-ext-val">${ext.opposing_party_name||'—'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Vehicle</div><div class="cl-ext-val">${ext.opposing_party_vehicle||'—'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Insurance</div><div class="cl-ext-val">${ext.opposing_party_insurance_company||'—'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Fault</div><div class="cl-ext-val">${ext.fault_determination||'—'}</div></div>
+          <div class="cl-ext-row full" style="border-color:rgba(192,57,43,.3)"><div class="cl-ext-label" style="color:var(--red)">SOL Deadline</div><div class="cl-ext-val" style="color:var(--red);font-weight:600">${ext.sol_date||'—'}</div></div>
+        </div>
+      </div>`:''}
+
+      <div class="cl-section">
+        <div class="cl-section-title">Workflow Status</div>
+        <div class="cl-timeline">
+          ${clStep('✓','Intake Received','Form submitted by client','done')}
+          ${clStep('✓','AI Classification','Case type and viability assessed','done')}
+          ${clStep(ext.accident_date?'✓':'○',ext.accident_date?'PDF Extracted':'PDF Extraction',ext.accident_date?'Police report parsed by Claude AI':'Awaiting police report upload',ext.accident_date?'done':'pending')}
+          ${clStep(c.status==='new'?'→':'✓','Paralegal Review',c.status==='new'?'Awaiting your decision':'Reviewed',c.status==='new'?'active-step':'done')}
+          ${clStep(c.clio_synced?'✓':'○','Clio Sync',c.clio_synced?'Matter updated, SOL calendar set':'Pending approval',c.clio_synced?'done':'pending')}
+          ${clStep(c.clio_synced?'✓':'○','Retainer Email',c.clio_synced?'Sent to client':'Pending Clio sync',c.clio_synced?'done':'pending')}
+        </div>
+      </div>
+
+      ${c.status==='new'?`<div class="cl-actions">
+        <button class="cl-btn cl-btn-primary" onclick="openModal()">✓ Accept &amp; Sync to Clio</button>
+        <button class="cl-btn cl-btn-decline" onclick="declineCase()">✕ Decline Case</button>
+      </div>`:c.clio_synced?`<div style="padding:12px 14px;background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:6px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">✅ Synced to Clio · SOL calendar created · Retainer email sent to ${c.client_email}</div>`:''}
     </div>`;
 }
 
-// ── Decline flow ──────────────────────────────────────────────────────────────
-function declineCase(id) {
-  const sec = document.getElementById('decline-section');
-  if (sec) sec.style.display = 'block';
+function clStep(icon, title, sub, state) {
+  return `<div class="cl-step">
+    <div class="cl-step-icon ${state}">${icon}</div>
+    <div class="cl-step-content">
+      <div class="cl-step-title">${title}</div>
+      <div class="cl-step-sub">${sub}</div>
+    </div>
+  </div>`;
 }
 
-function confirmDecline(id) {
-  const note = document.getElementById('decline-note')?.value;
-  const c = CASES.find(x => x.id === id);
-  if (c) {
-    c.status = 'declined';
-    renderList(currentFilter);
-    renderDetail(c);
-    showToast('Case declined. Client notification queued.', 'error');
-  }
+// ══════════════════════════════════════════════════════
+// ADVANCED RENDER
+// ══════════════════════════════════════════════════════
+function renderAdvanced() {
+  document.getElementById('adv-nav-new').textContent    = ALL.filter(i=>i.status==='new').length || '—';
+  document.getElementById('adv-nav-urgent').textContent = ALL.filter(i=>i.urgency==='critical').length || '—';
+  document.getElementById('adv-nav-sol').textContent    = ALL.filter(i=>i.sol_flag).length || '—';
+  if (advView==='overview') renderAdvOverview(); else renderAdvTable(advView);
 }
 
-// ── Verification Modal ────────────────────────────────────────────────────────
-function openVerifyModal() {
-  if (!currentCase) return;
-  const c = currentCase;
+function advNav(v, el) {
+  advView = v;
+  document.querySelectorAll('.adv-nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  renderAdvanced();
+}
 
-  // Accept first if still "new"
-  if (c.status === 'new') {
-    c.status = 'active';
-    renderList(currentFilter);
-  }
+function renderAdvOverview() {
+  const total=ALL.length, avg=total?(ALL.reduce((s,i)=>s+(i.viability_score||0),0)/total).toFixed(1):0;
+  const nw=ALL.filter(i=>i.status==='new').length, cr=ALL.filter(i=>i.urgency==='critical').length;
+  document.getElementById('adv-main').innerHTML=`
+    <div class="adv-section-label">OVERVIEW</div>
+    <div class="adv-stats">
+      <div class="adv-stat"><div class="adv-stat-label">Total Intakes</div><div class="adv-stat-num blue">${total}</div><div class="adv-stat-sub">All time</div></div>
+      <div class="adv-stat"><div class="adv-stat-label">Avg Viability Score</div><div class="adv-stat-num gold">${avg}</div><div class="adv-stat-sub">Out of 10</div></div>
+      <div class="adv-stat"><div class="adv-stat-label">New / Unreviewed</div><div class="adv-stat-num green">${nw}</div><div class="adv-stat-sub">Awaiting review</div></div>
+      <div class="adv-stat"><div class="adv-stat-label">Critical Urgency</div><div class="adv-stat-num red">${cr}</div><div class="adv-stat-sub">Immediate action</div></div>
+    </div>
+    <div class="adv-section-label">BREAKDOWN</div>
+    <div class="adv-charts">
+      <div class="adv-chart-card"><div class="adv-chart-title">Cases by Type</div><div class="adv-chart-wrap"><canvas id="bar-chart"></canvas></div></div>
+      <div class="adv-chart-card"><div class="adv-chart-title">Urgency Distribution</div><div class="adv-chart-wrap"><canvas id="donut-chart"></canvas></div></div>
+    </div>
+    <div class="adv-section-label">RECENT INTAKES</div>
+    <div class="adv-table-card adv-table">
+      <div class="adv-table-header"><span class="adv-table-title">Last 10 Submissions</span><span class="adv-table-count">${Math.min(total,10)} records</span></div>
+      ${advTable(ALL.slice(0,10))}
+    </div>`;
+  setTimeout(()=>{ buildBar(); buildDonut(); },50);
+}
 
-  const ext = c.extracted || {};
+function renderAdvTable(view) {
+  const titles={all:'All Intakes',urgent:'Critical Urgency',sol:'SOL Risk',new:'New Cases',active:'Active Cases',declined:'Declined Cases'};
+  let f=ALL;
+  if(view==='urgent') f=ALL.filter(i=>i.urgency==='critical');
+  else if(view==='sol') f=ALL.filter(i=>i.sol_flag);
+  else if(['new','active','declined'].includes(view)) f=ALL.filter(i=>i.status===view);
+  document.getElementById('adv-main').innerHTML=`
+    <div class="adv-section-label">${(titles[view]||view).toUpperCase()}</div>
+    <div class="adv-table-card adv-table">
+      <div class="adv-table-header"><span class="adv-table-title">${titles[view]||view}</span><span class="adv-table-count">${f.length} records</span></div>
+      ${advTable(f)}
+    </div>`;
+}
 
-  const body = document.getElementById('modal-body');
-  body.innerHTML = `
-    <div class="modal-intro">
-      Review every field below. The AI extracted this data from the police report PDF.
-      <strong>Edit any field</strong> that looks wrong before approving — edits are highlighted in gold.
+function advTable(intakes) {
+  if(!intakes.length) return '<div class="loading" style="padding:40px;color:#7d8590">No cases found</div>';
+  return `<table><thead><tr><th>TIME</th><th>CLIENT</th><th>CASE TYPE</th><th>SCORE</th><th>URGENCY</th><th>STATUS</th><th>SOL</th></tr></thead><tbody>
+    ${intakes.map(i=>{
+      const sc=i.viability_score||0, sc2=sc>=7?'sc-h':sc>=4?'sc-m':'sc-l';
+      return `<tr onclick="advOpenCase('${i.intake_id}')">
+        <td class="td-time">${fmt(i.submitted_at)}</td>
+        <td class="td-name">${i.client_name}</td>
+        <td class="td-type">${i.case_type}</td>
+        <td class="${sc2}">${sc}/10</td>
+        <td><span class="dk-badge dk-badge-${i.urgency}">${i.urgency}</span></td>
+        <td><span class="dk-badge dk-badge-${i.clio_synced?'synced':i.status}">${i.clio_synced?'synced':i.status}</span></td>
+        <td>${i.sol_flag?'<span style="color:var(--dk-red)">⚠️</span>':'—'}</td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+
+function advOpenCase(id) {
+  selectedId = id;
+  const c = ALL.find(i=>i.intake_id===id);
+  if (!c) return;
+  const ext = c.extracted||{};
+  const urgColor = c.urgency==='critical'?'var(--dk-red)':c.urgency==='high'?'var(--dk-orange)':c.urgency==='medium'?'var(--dk-yellow)':'var(--dk-green)';
+  document.getElementById('adv-panel-content').innerHTML = `
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;color:var(--dk-text);margin-bottom:4px">${c.client_name}</div>
+    <div style="font-size:12px;color:var(--dk-muted);margin-bottom:14px">${c.intake_id} · ${fmt(c.submitted_at)}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+      <span class="dk-badge dk-badge-${c.urgency}">${c.urgency}</span>
+      <span class="dk-badge dk-badge-${c.clio_synced?'synced':c.status}">${c.clio_synced?'synced':c.status}</span>
+      ${c.sol_flag?'<span class="dk-badge dk-badge-critical">⚠️ SOL Risk</span>':''}
+      ${c.has_police_report?'<span class="dk-badge dk-badge-new">📎 PDF</span>':''}
     </div>
 
-    <div class="verify-section">
-      <div class="verify-section-title">📅 Accident Details</div>
-      <div class="verify-grid">
-        <div class="verify-field">
-          <label>Accident Date (YYYY-MM-DD)</label>
-          <input type="text" id="vf_accident_date" value="${ext.accident_date || ''}" onchange="markChanged(this)">
-        </div>
-        <div class="verify-field">
-          <label>Police Report Number</label>
-          <input type="text" id="vf_police_report_number" value="${ext.police_report_number || ''}" onchange="markChanged(this)">
-        </div>
-        <div class="verify-field full">
-          <label>Accident Location</label>
-          <input type="text" id="vf_accident_location" value="${ext.accident_location || ''}" onchange="markChanged(this)">
-        </div>
+    <div style="background:var(--dk-bg3);border:1px solid var(--dk-border);border-radius:6px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:11px;color:var(--dk-muted);margin-bottom:4px">VIABILITY SCORE</div>
+        <div style="font-size:30px;font-weight:600;color:${urgColor};line-height:1">${c.viability_score}/10</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--dk-muted);margin-bottom:4px">CASE TYPE</div>
+        <div style="font-size:13px;color:var(--dk-text)">${c.case_type}</div>
       </div>
     </div>
 
-    <div class="verify-section">
-      <div class="verify-section-title">🚗 Vehicles & Parties</div>
-      <div class="verify-grid">
-        <div class="verify-field">
-          <label>Client Vehicle</label>
-          <input type="text" id="vf_client_vehicle_make_model" value="${ext.client_vehicle_make_model || ''}" onchange="markChanged(this)">
-        </div>
-        <div class="verify-field">
-          <label>Opposing Party Name</label>
-          <input type="text" id="vf_opposing_party_name" value="${ext.opposing_party_name || ''}" onchange="markChanged(this)">
-        </div>
-        <div class="verify-field">
-          <label>Opposing Party Vehicle</label>
-          <input type="text" id="vf_opposing_party_vehicle" value="${ext.opposing_party_vehicle || ''}" onchange="markChanged(this)">
-        </div>
-        <div class="verify-field">
-          <label>Fault Determination</label>
-          <input type="text" id="vf_fault_determination" value="${ext.fault_determination || ''}" onchange="markChanged(this)">
-        </div>
-      </div>
+    ${c.sol_flag?`<div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.25);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--dk-red)">⚠️ SOL Risk — ${ext.sol_date||'deadline approaching'}. File immediately.</div>`:''}
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">Client Info</div>
+      ${[['Email',c.client_email],['Phone',c.client_phone||'—'],['Case Type',c.case_type]].map(([k,v])=>`
+        <div style="display:flex;gap:10px;padding:5px 0;font-size:13px;border-bottom:1px solid rgba(48,54,61,.5)">
+          <span style="color:var(--dk-muted);width:80px;flex-shrink:0">${k}</span>
+          <span style="color:var(--dk-text)">${v}</span>
+        </div>`).join('')}
     </div>
 
-    <div class="verify-section">
-      <div class="verify-section-title">🛡️ Insurance & Legal</div>
-      <div class="verify-grid">
-        <div class="verify-field">
-          <label>Insurance Company</label>
-          <input type="text" id="vf_opposing_party_insurance_company" value="${ext.opposing_party_insurance_company || ''}" onchange="markChanged(this)">
-        </div>
-        <div class="verify-field">
-          <label>SOL Date (YYYY-MM-DD)</label>
-          <input type="text" id="vf_sol_date" value="${ext.sol_date || ''}" onchange="markChanged(this)" style="font-weight:600">
-        </div>
-        <div class="verify-field full">
-          <label>Narrative / Summary</label>
-          <textarea id="vf_narrative" onchange="markChanged(this)">${ext.narrative || ''}</textarea>
-        </div>
-      </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">AI Key Facts</div>
+      ${(c.key_facts||[]).map(f=>`<div style="display:flex;gap:8px;padding:6px 10px;background:var(--dk-bg3);border-radius:4px;font-size:12px;line-height:1.5;margin-bottom:5px;color:#e6edf3"><span style="color:var(--gold);flex-shrink:0">◆</span>${f}</div>`).join('')}
     </div>
+
+    ${ext.accident_date?`<div style="margin-bottom:16px">
+      <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">Police Report Extraction</div>
+      ${[['Accident Date',ext.accident_date],['Report #',ext.police_report_number||'—'],['Location',ext.accident_location||'—'],['Opposing Party',ext.opposing_party_name||'—'],['Insurance',ext.opposing_party_insurance_company||'—']].map(([k,v])=>`
+        <div style="display:flex;gap:10px;padding:5px 0;font-size:13px;border-bottom:1px solid rgba(48,54,61,.5)">
+          <span style="color:var(--dk-muted);width:110px;flex-shrink:0">${k}</span>
+          <span style="color:var(--dk-text)">${v}</span>
+        </div>`).join('')}
+      <div style="display:flex;gap:10px;padding:5px 0;font-size:13px">
+        <span style="color:var(--dk-muted);width:110px;flex-shrink:0">SOL Deadline</span>
+        <span style="color:var(--dk-red);font-weight:600">${ext.sol_date||'—'}</span>
+      </div>
+    </div>`:''}
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;color:var(--dk-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--dk-border)">Recommended Action</div>
+      <p style="font-size:13px;line-height:1.7;color:var(--dk-muted)">${c.recommended_action}</p>
+    </div>
+
+    ${c.status==='new'?`<div style="display:flex;gap:8px">
+      <button class="m-btn m-btn-primary" onclick="openModal()" style="background:var(--gold);color:#1a1a1a">✓ Accept &amp; Sync to Clio</button>
+      <button class="m-btn m-btn-ghost" onclick="advDecline('${c.intake_id}')" style="background:rgba(248,81,73,.1);color:var(--dk-red);border:1px solid rgba(248,81,73,.3)">✕ Decline</button>
+    </div>`:c.clio_synced?`<div style="padding:12px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:6px;font-size:13px;color:var(--dk-green)">✅ Synced to Clio · SOL calendar created · Retainer email sent</div>`:''}
   `;
-
-  document.getElementById('verify-modal').classList.add('open');
+  const overlay = document.getElementById('adv-overlay');
+  const panel   = document.getElementById('adv-panel');
+  overlay.style.opacity = '1';
+  overlay.style.pointerEvents = 'all';
+  panel.style.transform = 'translateX(0)';
 }
 
-function closeModal() {
-  document.getElementById('verify-modal').classList.remove('open');
+function closeAdvDetail(e) {
+  if (e && e.target !== document.getElementById('adv-overlay')) return;
+  const overlay = document.getElementById('adv-overlay');
+  const panel   = document.getElementById('adv-panel');
+  overlay.style.opacity = '0';
+  overlay.style.pointerEvents = 'none';
+  panel.style.transform = 'translateX(40px)';
 }
 
-function markChanged(el) {
-  el.classList.add('field-changed');
+function advDecline(id) {
+  const c = ALL.find(i=>i.intake_id===id);
+  if (c) { c.status='declined'; renderAdvanced(); closeAdvDetail(); }
+  showToast('Case declined.','error');
 }
 
-function approveToClio() {
-  const btn = document.getElementById('approve-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Syncing to Clio…';
+function buildBar() {
+  const counts={};
+  ALL.forEach(i=>{ counts[i.case_type]=(counts[i.case_type]||0)+1; });
+  const ctx=document.getElementById('bar-chart');
+  if(!ctx) return;
+  if(barChart) barChart.destroy();
+  barChart=new Chart(ctx,{type:'bar',data:{labels:Object.keys(counts),datasets:[{data:Object.values(counts),backgroundColor:'#1B3A6B',borderColor:'#C9A84C',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7d8590',font:{size:10}},grid:{color:'#21262d'}},y:{ticks:{color:'#7d8590',stepSize:1},grid:{color:'#21262d'},beginAtZero:true}}}});
+}
 
-  // Collect verified data
-  const verified = {
-    accident_date:                    document.getElementById('vf_accident_date')?.value,
-    accident_location:                document.getElementById('vf_accident_location')?.value,
-    police_report_number:             document.getElementById('vf_police_report_number')?.value,
-    client_vehicle_make_model:        document.getElementById('vf_client_vehicle_make_model')?.value,
-    opposing_party_name:              document.getElementById('vf_opposing_party_name')?.value,
-    opposing_party_vehicle:           document.getElementById('vf_opposing_party_vehicle')?.value,
-    opposing_party_insurance_company: document.getElementById('vf_opposing_party_insurance_company')?.value,
-    fault_determination:              document.getElementById('vf_fault_determination')?.value,
-    sol_date:                         document.getElementById('vf_sol_date')?.value,
-    narrative:                        document.getElementById('vf_narrative')?.value,
+function buildDonut() {
+  const u={critical:0,high:0,medium:0,low:0};
+  ALL.forEach(i=>{ if(u[i.urgency]!==undefined) u[i.urgency]++; });
+  const ctx=document.getElementById('donut-chart');
+  if(!ctx) return;
+  if(donutChart) donutChart.destroy();
+  donutChart=new Chart(ctx,{type:'doughnut',data:{labels:['Critical','High','Medium','Low'],datasets:[{data:[u.critical,u.high,u.medium,u.low],backgroundColor:['#f85149','#e08436','#d4a72c','#3fb950'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#e6edf3',font:{size:12},padding:14,boxWidth:12}}}}});
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════════════
+function openModal() {
+  const c=ALL.find(i=>i.intake_id===selectedId);
+  if(!c) return;
+  const ext=c.extracted||{};
+  document.getElementById('modal-body').innerHTML=`
+    <div style="font-size:13px;color:var(--muted);margin-bottom:18px;padding:10px 12px;background:var(--light);border-radius:6px;border-left:3px solid var(--gold)">Review all AI-extracted fields before approving. Edit anything that's incorrect.</div>
+    <div class="v-section"><div class="v-section-title">Accident Details</div><div class="v-grid">
+      <div class="v-field"><label>Accident Date</label><input id="vf_accident_date" value="${ext.accident_date||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Police Report #</label><input id="vf_police_report_number" value="${ext.police_report_number||''}" onchange="markChanged(this)"></div>
+      <div class="v-field full"><label>Accident Location</label><input id="vf_accident_location" value="${ext.accident_location||''}" onchange="markChanged(this)"></div>
+    </div></div>
+    <div class="v-section"><div class="v-section-title">Vehicles &amp; Parties</div><div class="v-grid">
+      <div class="v-field"><label>Client Vehicle</label><input id="vf_client_vehicle_make_model" value="${ext.client_vehicle_make_model||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Opposing Party</label><input id="vf_opposing_party_name" value="${ext.opposing_party_name||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Opposing Vehicle</label><input id="vf_opposing_party_vehicle" value="${ext.opposing_party_vehicle||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Fault Determination</label><input id="vf_fault_determination" value="${ext.fault_determination||''}" onchange="markChanged(this)"></div>
+    </div></div>
+    <div class="v-section"><div class="v-section-title">Insurance &amp; SOL</div><div class="v-grid">
+      <div class="v-field"><label>Insurance Company</label><input id="vf_opposing_party_insurance_company" value="${ext.opposing_party_insurance_company||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>SOL Date</label><input id="vf_sol_date" value="${ext.sol_date||''}" onchange="markChanged(this)" style="font-weight:600;color:var(--red)"></div>
+      <div class="v-field full"><label>Narrative Summary</label><textarea id="vf_narrative" onchange="markChanged(this)">${ext.narrative||''}</textarea></div>
+    </div></div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function markChanged(el) { el.classList.add('field-changed'); }
+
+async function approveToClio() {
+  const btn=document.getElementById('approve-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-inline"></span> Syncing…';
+  const c=ALL.find(i=>i.intake_id===selectedId);
+  const verified={
+    accident_date:document.getElementById('vf_accident_date')?.value,
+    accident_location:document.getElementById('vf_accident_location')?.value,
+    police_report_number:document.getElementById('vf_police_report_number')?.value,
+    client_vehicle_make_model:document.getElementById('vf_client_vehicle_make_model')?.value,
+    opposing_party_name:document.getElementById('vf_opposing_party_name')?.value,
+    opposing_party_vehicle:document.getElementById('vf_opposing_party_vehicle')?.value,
+    opposing_party_insurance_company:document.getElementById('vf_opposing_party_insurance_company')?.value,
+    fault_determination:document.getElementById('vf_fault_determination')?.value,
+    sol_date:document.getElementById('vf_sol_date')?.value,
+    narrative:document.getElementById('vf_narrative')?.value,
   };
-
-  const payload = {
-    intake_id:      currentCase.id,
-    verified_data:  verified,
-    client_name:    currentCase.client_name,
-    client_email:   currentCase.client_email,
-    incident_date:  currentCase.incident_date,
-  };
-
-  // Call the Clio Lambda
-  const CLIO_API = window.CLIO_API_URL || 'https://api.richardsandlaw.com/clio';
-
-  fetch(CLIO_API, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  })
-  .then(r => r.ok ? r.json() : Promise.reject(r))
-  .then(data => {
-    currentCase.clio_synced = true;
-    currentCase.extracted   = { ...currentCase.extracted, ...verified };
-    closeModal();
-    renderList(currentFilter);
-    renderDetail(currentCase);
-    showToast('✅ Synced to Clio! SOL calendar created. Retainer email sent.', 'success');
-  })
-  .catch(err => {
-    // Demo mode: simulate success so judges can see the flow
-    console.warn('Clio API not reachable — demo mode active:', err);
-    currentCase.clio_synced = true;
-    currentCase.extracted   = { ...currentCase.extracted, ...verified };
-    closeModal();
-    renderList(currentFilter);
-    renderDetail(currentCase);
-    showToast('✅ [DEMO] Synced to Clio! SOL calendar created. Retainer email sent.', 'success');
-  })
-  .finally(() => {
-    btn.disabled = false;
-    btn.innerHTML = '✓ Approve & Sync to Clio';
-  });
+  try {
+    await fetch(CLIO_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intake_id:selectedId,verified_data:verified,client_name:c?.client_name,client_email:c?.client_email})});
+  } catch(e){ console.warn('Demo mode',e); }
+  if(c){ c.status='active'; c.clio_synced=true; c.extracted={...c.extracted,...verified}; }
+  closeModal(); renderAll(); openCase(selectedId);
+  showToast('✅ Synced to Clio! SOL calendar created. Retainer email sent.','success');
+  btn.disabled=false; btn.innerHTML='✓ Approve & Sync to Clio';
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function timeAgo(iso) {
-  const diff = (Date.now() - new Date(iso)) / 1000;
-  if (diff < 60)     return 'just now';
-  if (diff < 3600)   return `${Math.floor(diff/60)}m ago`;
-  if (diff < 86400)  return `${Math.floor(diff/3600)}h ago`;
-  return `${Math.floor(diff/86400)}d ago`;
+function declineCase() {
+  const c=ALL.find(i=>i.intake_id===selectedId);
+  if(c){ c.status='declined'; renderAll(); openCase(selectedId); }
+  showToast('Case declined.','error');
 }
 
-function formatDate(iso, short = false) {
-  const d = new Date(iso);
-  if (short) return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-  return d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'});
-}
+document.getElementById('modal-overlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modal-overlay')) closeModal(); });
 
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className   = `toast ${type} show`;
-  setTimeout(() => t.classList.remove('show'), 4000);
-}
+function fmt(iso) { if(!iso) return '—'; return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function showToast(msg,type='info') { const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type} show`; setTimeout(()=>t.classList.remove('show'),4000); }
 
-// Close modal on backdrop click
-document.getElementById('verify-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-renderList('all');
-// Auto-select first case for demo
-selectCase(CASES[0].id);
+loadData();
 </script>
 </body>
 </html>

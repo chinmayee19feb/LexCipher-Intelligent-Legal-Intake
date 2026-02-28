@@ -208,7 +208,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub lexcipher-dashboard-${Stage}
-      CodeUri: dashboard/
+      CodeUri: lexcipher-dashboard/
       Handler: handler.handler
       Description: Returns recent intakes for the operations dashboard
       Policies:
@@ -246,6 +246,9 @@ Resources:
     Properties:
       Name: !Sub lexcipher-api-${Stage}
       StageName: !Ref Stage
+      BinaryMediaTypes:
+        - multipart/form-data
+        - application/octet-stream
       Cors:
         AllowMethods: "'GET,POST,PATCH,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization,X-Requested-With'"
@@ -349,4 +352,3 @@ Outputs:
   DynamoTableName:
     Description: DynamoDB intakes table
     Value: !Ref IntakeTable
-    
