@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Richards & Law — Legal Intake</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1B2B;
+    --navy-mid: #152534;
+    --blue: #2563EB;
+    --gold: #C9A84C;
+    --cream: #F8F5F0;
+    --cream-dark: #EDE9E2;
+    --text: #1A2B3C;
+    --text-muted: #6B7E8F;
+    --border: #D4CFC8;
+    --success: #059669;
+    --error: #DC2626;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── HEADER: Richards & Law (same structure, updated branding) ── */
+  header { background: var(--navy); padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+
+  .logo-seal {
+    width: 44px; height: 44px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 13px; font-weight: 600;
+    color: var(--gold); letter-spacing: 0.5px;
+  }
+  .logo-seal::before {
+    content: ''; position: absolute; inset: 4px;
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 50%;
+  }
+
+  .logo-words { display: flex; flex-direction: column; gap: 2px; }
+  .logo-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px; font-weight: 600;
+    color: #FFFFFF; letter-spacing: 0.02em; line-height: 1;
+  }
+  .logo-name span {
+    color: var(--gold);
+    font-style: normal;
+    font-size: 28px;
+  }
+  .logo-tagline {
+    font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: rgba(255,255,255,0.4);
+  }
+
+  /* ── MAIN: unchanged from LexFlow ── */
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 84px); }
+
+  .left-panel { background: var(--navy); padding: 60px 50px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+  .left-panel::before { content: ''; position: absolute; top: -100px; right: -100px; width: 400px; height: 400px; border: 1px solid rgba(201,168,76,0.15); border-radius: 50%; }
+  .left-panel::after { content: ''; position: absolute; bottom: -150px; left: -80px; width: 350px; height: 350px; border: 1px solid rgba(37,99,235,0.2); border-radius: 50%; }
+  .panel-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; }
+  .panel-title { font-family: 'Playfair Display', serif; font-size: 42px; line-height: 1.2; color: white; margin-bottom: 24px; }
+  .panel-title em { font-style: italic; color: var(--gold); }
+  .panel-desc { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.6); margin-bottom: 48px; max-width: 380px; }
+  .trust-items { display: flex; flex-direction: column; gap: 16px; }
+  .trust-item { display: flex; align-items: center; gap: 14px; }
+  .trust-icon { width: 36px; height: 36px; background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .trust-text { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+  .trust-text strong { color: white; display: block; font-weight: 500; margin-bottom: 2px; }
+
+  .right-panel { background: var(--cream); padding: 50px; overflow-y: auto; display: flex; flex-direction: column; justify-content: center; }
+  .form-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--navy); margin-bottom: 8px; }
+  .form-divider { width: 48px; height: 3px; background: var(--gold); margin: 16px 0; border-radius: 2px; }
+  .form-subtitle { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 32px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+  .form-group.no-margin { margin-bottom: 0; }
+  label { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  label .optional { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--gold); font-size: 11px; margin-left: 4px; }
+  input, textarea { font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--text); background: white; border: 1.5px solid var(--border); border-radius: 8px; padding: 12px 16px; transition: border-color 0.2s, box-shadow 0.2s; outline: none; width: 100%; }
+  input:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+  textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+
+  .radio-group { display: flex; gap: 12px; }
+  .radio-option { flex: 1; position: relative; }
+  .radio-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+  .radio-option label { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: white; border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text); transition: all 0.2s; }
+  .radio-option input[type="radio"]:checked + label { border-color: var(--blue); background: rgba(37,99,235,0.05); color: var(--blue); }
+  .radio-dot { width: 16px; height: 16px; border: 2px solid var(--border); border-radius: 50%; transition: all 0.2s; flex-shrink: 0; }
+  .radio-option input[type="radio"]:checked + label .radio-dot { border-color: var(--blue); background: var(--blue); box-shadow: inset 0 0 0 3px white; }
+
+  /* ── PDF UPLOAD: new section ── */
+  .section-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 4px 0 20px;
+    color: var(--text-muted); font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .section-divider::before, .section-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 24px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: white; position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--gold); background: rgba(201,168,76,0.04);
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%; border: none; padding: 0;
+  }
+  .upload-icon { font-size: 26px; margin-bottom: 8px; }
+  .upload-text { font-size: 14px; color: var(--text-muted); }
+  .upload-text strong { color: var(--gold); font-weight: 600; }
+  .upload-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; opacity: 0.7; }
+
+  .upload-success {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 13px 16px;
+    background: rgba(5,150,105,0.06); border: 1.5px solid rgba(5,150,105,0.25);
+    border-radius: 8px; font-size: 14px; color: var(--success); font-weight: 500;
+  }
+  .upload-success.show { display: flex; }
+  .upload-zone.has-file { display: none; }
+  .upload-remove {
+    background: none; border: none; color: var(--error);
+    cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif;
+    font-weight: 500; margin-left: 6px; text-decoration: underline;
+  }
+
+  /* ── SUBMIT: unchanged from LexFlow ── */
+  .submit-btn { width: 100%; padding: 16px; background: var(--navy); color: white; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+  .submit-btn:hover:not(:disabled) { background: var(--navy-mid); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(11,27,43,0.25); }
+  .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+  .btn-inner { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg { display: none; background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2); border-radius: 8px; padding: 12px 16px; font-size: 14px; color: var(--error); margin-top: 12px; }
+
+  .success-state { display: none; text-align: center; padding: 40px 20px; animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .success-icon { width: 72px; height: 72px; background: rgba(5,150,105,0.1); border: 2px solid rgba(5,150,105,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 32px; }
+  .success-title { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--navy); margin-bottom: 12px; }
+  .success-desc { font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 8px; }
+  .success-id { font-size: 12px; color: var(--text-muted); margin-top: 20px; font-family: monospace; background: var(--cream-dark); padding: 8px 16px; border-radius: 6px; display: inline-block; }
+  .privacy-note { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 16px; line-height: 1.5; }
+
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; }
+    .left-panel { display: none; }
+    .right-panel { padding: 32px 24px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-seal">
+    R&L
+  </div>
+  <div class="logo-words">
+    <div class="logo-name">Richards <span>&</span> Law</div>
+    <div class="logo-tagline">Personal Injury Attorneys · New York</div>
+  </div>
+</header>
+
+<main>
+  <div class="left-panel">
+    <div class="panel-eyebrow">Free Case Evaluation</div>
+    <h1 class="panel-title">Your case<br>deserves <em>immediate</em><br>attention.</h1>
+    <p class="panel-desc">Tell us what happened. Our system evaluates your situation instantly and connects you with the right attorney — no waiting, no forms lost in a pile.</p>
+    <div class="trust-items">
+      <div class="trust-item">
+        <div class="trust-icon">⚡</div>
+        <div class="trust-text"><strong>Response in 90 seconds</strong>Confirmation email sent immediately after submission</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-icon">⚖️</div>
+        <div class="trust-text"><strong>Expert evaluation</strong>AI-assisted triage reviewed by licensed attorneys</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-icon">🔒</div>
+        <div class="trust-text"><strong>Strictly confidential</strong>Attorney-client privilege applies from first contact</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-icon">💼</div>
+        <div class="trust-text"><strong>No upfront cost</strong>You pay nothing unless we win your case</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div id="formContainer">
+      <h2 class="form-title">Submit Your Inquiry</h2>
+      <div class="form-divider"></div>
+      <p class="form-subtitle">All fields are required unless marked optional. Your information is protected and confidential.</p>
+
+      <form id="intakeForm" novalidate>
+        <div class="form-row">
+          <div class="form-group no-margin">
+            <label for="client_name">Full Name</label>
+            <input type="text" id="client_name" placeholder="Jane Smith" required>
+          </div>
+          <div class="form-group no-margin">
+            <label for="client_email">Email Address</label>
+            <input type="email" id="client_email" placeholder="jane@email.com" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group no-margin">
+            <label for="client_phone">Phone Number</label>
+            <input type="tel" id="client_phone" placeholder="+1 (555) 000-0000" required>
+          </div>
+          <div class="form-group no-margin">
+            <label for="incident_date">Date of Incident</label>
+            <input type="date" id="incident_date" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Have you spoken to another attorney about this?</label>
+          <div class="radio-group">
+            <div class="radio-option">
+              <input type="radio" id="prior_yes" name="prior_attorney" value="true" required>
+              <label for="prior_yes"><span class="radio-dot"></span>Yes</label>
+            </div>
+            <div class="radio-option">
+              <input type="radio" id="prior_no" name="prior_attorney" value="false">
+              <label for="prior_no"><span class="radio-dot"></span>No</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Describe What Happened</label>
+          <textarea id="description" required placeholder="Please describe the incident, any injuries you sustained, and what happened in as much detail as you are comfortable sharing. Include dates, locations, and any evidence you may have."></textarea>
+        </div>
+
+        <!-- ── NEW: Police Report Upload ── -->
+        <div class="section-divider">Police Report</div>
+
+        <div class="form-group">
+          <label>Upload Police Report <span class="optional">— optional but speeds up your review</span></label>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="police_report" accept=".pdf" onchange="handleFileSelect(this)">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text"><strong>Click to upload</strong> or drag & drop</div>
+            <div class="upload-hint">Police Report PDF only · Max 10MB</div>
+          </div>
+          <div class="upload-success" id="uploadSuccess">
+            <span>✅</span>
+            <span id="uploadFileName">report.pdf</span>
+            <button type="button" class="upload-remove" onclick="removeFile()">Remove</button>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <span class="btn-inner">
+            <span class="spinner" id="spinner"></span>
+            <span id="btnText">Submit My Inquiry</span>
+          </span>
+        </button>
+
+        <div class="error-msg" id="errorMsg"></div>
+        <p class="privacy-note">🔒 Your submission is encrypted and confidential. By submitting, you consent to being contacted by our legal team.</p>
+      </form>
+    </div>
+
+    <div class="success-state" id="successState">
+      <div class="success-icon">✓</div>
+      <h2 class="success-title">Inquiry Received</h2>
+      <p class="success-desc">Thank you, <strong id="successName"></strong>. We have received your inquiry and our team is reviewing it now.</p>
+      <p class="success-desc">Please check your email for a confirmation message with next steps.</p>
+      <div class="success-id" id="successId"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const API_URL = 'https://7t8pa65z48.execute-api.us-east-1.amazonaws.com/intake';
+
+  // ── File Upload (NEW) ─────────────────────────────────────────────
+  let selectedFile = null;
+
+  function handleFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { showError('Please upload a PDF file only.'); input.value = ''; return; }
+    if (file.size > 10 * 1024 * 1024) { showError('File size must be under 10MB.'); input.value = ''; return; }
+    selectedFile = file;
+    document.getElementById('uploadZone').classList.add('has-file');
+    document.getElementById('uploadFileName').textContent = file.name;
+    document.getElementById('uploadSuccess').classList.add('show');
+    document.getElementById('errorMsg').style.display = 'none';
+  }
+
+  function removeFile() {
+    selectedFile = null;
+    document.getElementById('police_report').value = '';
+    document.getElementById('uploadZone').classList.remove('has-file');
+    document.getElementById('uploadSuccess').classList.remove('show');
+  }
+
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const input = document.getElementById('police_report');
+      const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+      handleFileSelect(input);
+    }
+  });
+
+  // ── Form Submission (extended from LexFlow) ───────────────────────
+  document.getElementById('intakeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name       = document.getElementById('client_name').value.trim();
+    const email      = document.getElementById('client_email').value.trim();
+    const phone      = document.getElementById('client_phone').value.trim();
+    const date       = document.getElementById('incident_date').value;
+    const desc       = document.getElementById('description').value.trim();
+    const priorRadio = document.querySelector('input[name="prior_attorney"]:checked');
+
+    if (!name || !email || !phone || !date || !desc || !priorRadio) {
+      showError('Please fill in all required fields before submitting.');
+      return;
+    }
+
+    const btn     = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Processing your inquiry...';
+    document.getElementById('errorMsg').style.display = 'none';
+
+    try {
+      let body, headers = {};
+
+      if (selectedFile) {
+        // Multipart — PDF attached
+        const fd = new FormData();
+        fd.append('client_name',    name);
+        fd.append('client_email',   email);
+        fd.append('client_phone',   phone);
+        fd.append('incident_date',  date);
+        fd.append('prior_attorney', priorRadio.value);
+        fd.append('description',    desc);
+        fd.append('police_report',  selectedFile);
+        body = fd;
+      } else {
+        // JSON only — original LexFlow path
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify({
+          client_name:    name,
+          client_email:   email,
+          client_phone:   phone,
+          incident_date:  date,
+          prior_attorney: priorRadio.value === 'true',
+          description:    desc
+        });
+      }
+
+      const res  = await fetch(API_URL, { method: 'POST', headers, body });
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('formContainer').style.display = 'none';
+        document.getElementById('successState').style.display  = 'block';
+        document.getElementById('successName').textContent = name.split(' ')[0];
+        document.getElementById('successId').textContent   = 'Reference ID: ' + data.intake_id;
+      } else {
+        showError(data.error || 'Something went wrong. Please try again.');
+        resetBtn();
+      }
+    } catch (err) {
+      showError('Unable to submit. Please check your connection and try again.');
+      resetBtn();
+    }
+
+    function resetBtn() {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = 'Submit My Inquiry';
+    }
+  });
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+</script>
+</body>
+</html>

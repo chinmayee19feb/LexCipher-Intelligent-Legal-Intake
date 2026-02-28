@@ -1,0 +1,359 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  LexCipher — AI-Powered Police Report Automation for Richards & Law
+  Automates PI case intake, police report extraction, Clio Matter sync,
+  SOL calendar events, and personalized retainer emails.
+
+# ── Parameters ────────────────────────────────────────────────────────────────
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, prod]
+    Description: Deployment stage
+
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+    Description: Anthropic API key for Claude AI (stored in SSM)
+
+  ClioAccessToken:
+    Type: String
+    NoEcho: true
+    Description: Clio OAuth2 access token (stored in SSM)
+
+  SesFromEmail:
+    Type: String
+    Default: intake@richardsandlaw.com
+    Description: Verified SES sender email address
+
+  AttorneyEmail:
+    Type: String
+    Default: andrew@richardsandlaw.com
+    Description: Attorney alert email address
+
+# ── Globals ───────────────────────────────────────────────────────────────────
+Globals:
+  Function:
+    Runtime:      python3.12
+    Timeout:      60
+    MemorySize:   512
+    Architectures: [x86_64]
+    Environment:
+      Variables:
+        STAGE:          !Ref Stage
+        DYNAMODB_TABLE: !Ref IntakeTable
+        PDF_BUCKET:     !Ref PdfBucket
+        SES_FROM_EMAIL: !Ref SesFromEmail
+        ATTORNEY_EMAIL: !Ref AttorneyEmail
+    Layers:
+      - !Ref DepsLayer
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+Resources:
+
+  # ── SSM Parameters (secrets) ───────────────────────────────────────────────
+  AnthropicApiKeyParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /lexcipher/anthropic/api_key
+      Type: SecureString
+      Value: !Ref AnthropicApiKey
+      Description: Anthropic API key for Claude AI
+
+  ClioAccessTokenParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /lexcipher/clio/access_token
+      Type: SecureString
+      Value: !Ref ClioAccessToken
+      Description: Clio OAuth2 access token
+
+  # ── DynamoDB Table ─────────────────────────────────────────────────────────
+  IntakeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: lexcipher-intakes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: intake_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: intake_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: LexCipher
+
+  # ── S3 Bucket (police report PDFs) ────────────────────────────────────────
+  PdfBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub lexcipher-police-reports-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldPdfs
+            Status: Enabled
+            ExpirationInDays: 2555  # 7 years for legal compliance
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls:       true
+        BlockPublicPolicy:     true
+        IgnorePublicAcls:      true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: LexCipher
+
+  # ── Lambda Dependency Layer ────────────────────────────────────────────────
+  DepsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: lexcipher-deps
+      Description: Python dependencies for LexCipher Lambdas
+      ContentUri: layer/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.12
+
+  # ── Intake Lambda ──────────────────────────────────────────────────────────
+  IntakeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub lexcipher-intake-${Stage}
+      CodeUri: lexcipher-intake/
+      Handler: handler.handler
+      Description: Receives intake form submissions, classifies cases, extracts police reports via Claude AI
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IntakeTable
+        - S3CrudPolicy:
+            BucketName: !Ref PdfBucket
+        - SESCrudPolicy:
+            IdentityName: !Ref SesFromEmail
+        - SSMParameterReadPolicy:
+            ParameterName: /lexcipher/anthropic/api_key
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/anthropic/api_key
+      Events:
+        IntakePost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /intake
+            Method:    POST
+        IntakeOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /intake
+            Method:    OPTIONS
+
+  # ── Clio Lambda ───────────────────────────────────────────────────────────
+  ClioFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub lexcipher-clio-${Stage}
+      CodeUri: lexcipher-clio/
+      Handler: handler.handler
+      Description: Syncs verified data to Clio Manage, creates SOL calendar event, sends retainer email
+      Timeout: 90  # Clio API + SES can be slow
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IntakeTable
+        - S3ReadPolicy:
+            BucketName: !Ref PdfBucket
+        - SESCrudPolicy:
+            IdentityName: !Ref SesFromEmail
+        - SSMParameterReadPolicy:
+            ParameterName: /lexcipher/clio/access_token
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/clio/access_token
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/anthropic/api_key
+      Events:
+        ClioPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /clio
+            Method:    POST
+        ClioOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /clio
+            Method:    OPTIONS
+
+  # ── Dashboard Lambda (serves intake list for dashboard) ────────────────────
+  DashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub lexcipher-dashboard-${Stage}
+      CodeUri: lexcipher-dashboard/
+      Handler: handler.handler
+      Description: Returns recent intakes for the operations dashboard
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref IntakeTable
+      Events:
+        DashboardGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /intakes
+            Method:    GET
+        DashboardOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /intakes
+            Method:    OPTIONS
+        IntakeGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /intakes/{intake_id}
+            Method:    GET
+        StatusPatch:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path:      /intakes/{intake_id}/status
+            Method:    PATCH
+
+  # ── API Gateway ────────────────────────────────────────────────────────────
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name:        !Sub lexcipher-api-${Stage}
+      StageName:   !Ref Stage
+      Cors:
+        AllowMethods: "'GET,POST,PATCH,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Requested-With'"
+        AllowOrigin:  "'*'"
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin:  "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin:  "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+
+  # ── S3 Bucket for static frontend assets ──────────────────────────────────
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub lexcipher-frontend-${AWS::AccountId}
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument:  index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls:       false
+        BlockPublicPolicy:     false
+        IgnorePublicAcls:      false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Project
+          Value: LexCipher
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:  s3:GetObject
+            Resource: !Sub ${FrontendBucket.Arn}/*
+
+  # ── CloudFront Distribution ────────────────────────────────────────────────
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled:           true
+        DefaultRootObject: index.html
+        HttpVersion:       http2
+        PriceClass:        PriceClass_100
+        Origins:
+          - Id:         S3Frontend
+            DomainName: !GetAtt FrontendBucket.WebsiteURL
+            CustomOriginConfig:
+              HTTPPort:             80
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId:       S3Frontend
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:       [GET, HEAD, OPTIONS]
+          CachedMethods:        [GET, HEAD]
+          Compress:             true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          MinTTL:     0
+          DefaultTTL: 86400
+          MaxTTL:     31536000
+        CustomErrorResponses:
+          - ErrorCode:          404
+            ResponseCode:       200
+            ResponsePagePath:   /index.html
+          - ErrorCode:          403
+            ResponseCode:       200
+            ResponsePagePath:   /index.html
+      Tags:
+        - Key: Project
+          Value: LexCipher
+
+# ── Outputs ───────────────────────────────────────────────────────────────────
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway base URL
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiEndpoint
+
+  IntakeEndpoint:
+    Description: Intake form POST endpoint
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/intake
+
+  ClioEndpoint:
+    Description: Clio sync POST endpoint
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/clio
+
+  DashboardEndpoint:
+    Description: Dashboard intakes GET endpoint
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/intakes
+
+  FrontendUrl:
+    Description: CloudFront HTTPS URL for frontend
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
+
+  PdfBucketName:
+    Description: S3 bucket for police report PDFs
+    Value: !Ref PdfBucket
+
+  DynamoTableName:
+    Description: DynamoDB intakes table
+    Value: !Ref IntakeTable

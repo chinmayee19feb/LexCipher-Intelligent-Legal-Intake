@@ -1,0 +1,168 @@
+name: Deploy LexCipher
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # manual trigger for demo
+
+env:
+  AWS_REGION:     us-east-1
+  STACK_NAME:     lexcipher
+  SAM_BUCKET:     lexcipher-sam-artifacts-${{ secrets.AWS_ACCOUNT_ID }}
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ──────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # ── 3. AWS credentials ───────────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      # ── 4. SAM CLI ───────────────────────────────────────────────────────────
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      # ── 5. Build Lambda layer ────────────────────────────────────────────────
+      - name: Install Lambda layer dependencies
+        run: |
+          mkdir -p layer/python
+          pip install \
+            anthropic==0.40.0 \
+            boto3==1.35.0 \
+            requests==2.31.0 \
+            python-dateutil==2.9.0 \
+            -t layer/python \
+            --no-cache-dir \
+            --quiet
+
+      # ── 6. SAM Build ─────────────────────────────────────────────────────────
+      - name: SAM Build
+        run: sam build --use-container
+
+      # ── 7. Ensure SAM artifacts bucket exists ────────────────────────────────
+      - name: Ensure SAM artifacts bucket
+        run: |
+          aws s3api head-bucket --bucket ${{ env.SAM_BUCKET }} 2>/dev/null || \
+          aws s3api create-bucket \
+            --bucket ${{ env.SAM_BUCKET }} \
+            --region ${{ env.AWS_REGION }}
+
+      # ── 8. SAM Deploy ────────────────────────────────────────────────────────
+      - name: SAM Deploy
+        run: |
+          sam deploy \
+            --stack-name    ${{ env.STACK_NAME }} \
+            --s3-bucket     ${{ env.SAM_BUCKET }} \
+            --region        ${{ env.AWS_REGION }} \
+            --capabilities  CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              Stage=prod \
+              AnthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }} \
+              ClioAccessToken=${{ secrets.CLIO_ACCESS_TOKEN }} \
+              SesFromEmail=intake@richardsandlaw.com \
+              AttorneyEmail=andrew@richardsandlaw.com
+
+      # ── 9. Get stack outputs ─────────────────────────────────────────────────
+      - name: Get deployment outputs
+        id: outputs
+        run: |
+          API=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
+            --output text)
+          FRONTEND=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" \
+            --output text)
+          echo "api_url=$API"          >> $GITHUB_OUTPUT
+          echo "frontend_url=$FRONTEND" >> $GITHUB_OUTPUT
+          echo "API endpoint: $API"
+          echo "Frontend URL: $FRONTEND"
+
+      # ── 10. Inject API URL into frontend files ───────────────────────────────
+      - name: Inject API URL into frontend
+        run: |
+          API_URL="${{ steps.outputs.outputs.api_url }}"
+          # Patch intake form
+          sed -i "s|https://api.richardsandlaw.com/intake|${API_URL}/intake|g" \
+            intake-form/index.html
+          # Patch dashboard
+          sed -i "s|https://api.richardsandlaw.com/clio|${API_URL}/clio|g" \
+            dashboard/index.html
+          sed -i "s|window.CLIO_API_URL.*||g" dashboard/index.html
+          # Write API config
+          cat > dashboard/config.js << EOF
+          window.CLIO_API_URL   = '${API_URL}/clio';
+          window.INTAKE_API_URL = '${API_URL}/intake';
+          window.INTAKES_API_URL= '${API_URL}/intakes';
+          EOF
+
+      # ── 11. Deploy frontend to S3 ────────────────────────────────────────────
+      - name: Deploy frontend to S3
+        run: |
+          BUCKET="lexcipher-frontend-${{ secrets.AWS_ACCOUNT_ID }}"
+          # Upload intake form
+          aws s3 cp intake-form/index.html \
+            s3://${BUCKET}/index.html \
+            --content-type "text/html" \
+            --cache-control "max-age=300"
+          # Upload dashboard
+          aws s3 cp dashboard/index.html \
+            s3://${BUCKET}/dashboard/index.html \
+            --content-type "text/html" \
+            --cache-control "max-age=300"
+          aws s3 cp dashboard/config.js \
+            s3://${BUCKET}/dashboard/config.js \
+            --content-type "application/javascript" \
+            --cache-control "no-cache"
+
+      # ── 12. Invalidate CloudFront cache ──────────────────────────────────────
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, 'lexcipher-frontend')].Id" \
+            --output text)
+          if [ -n "$DIST_ID" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id "$DIST_ID" \
+              --paths "/*"
+            echo "Cache invalidated for distribution $DIST_ID"
+          fi
+
+      # ── 13. Summary ──────────────────────────────────────────────────────────
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "══════════════════════════════════════════"
+          echo "  ✅  LexCipher deployed successfully"
+          echo "══════════════════════════════════════════"
+          echo ""
+          echo "  🌐 Frontend:  ${{ steps.outputs.outputs.frontend_url }}"
+          echo "  🔌 API:       ${{ steps.outputs.outputs.api_url }}"
+          echo "  📋 Dashboard: ${{ steps.outputs.outputs.frontend_url }}/dashboard"
+          echo ""
+          echo "  Endpoints:"
+          echo "    POST  /intake     → intake Lambda"
+          echo "    POST  /clio       → Clio sync Lambda"
+          echo "    GET   /intakes    → dashboard data"
+          echo ""

@@ -1,0 +1,8 @@
+credentials.json
+clio_ids.json
+venv/
+__pycache__/
+*.pyc
+.aws-sam/
+layer/
+.env
