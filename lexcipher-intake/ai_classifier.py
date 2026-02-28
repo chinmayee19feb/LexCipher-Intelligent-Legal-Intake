@@ -28,8 +28,14 @@ def _get_api_key() -> str:
         logger.error(f"Failed to load Anthropic API key from SSM: {e}")
         raise
 
-client = anthropic.Anthropic(api_key=_get_api_key())
 MODEL  = "claude-haiku-4-5"
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=_get_api_key())
+    return _client
 
 
 # ── Case Classification ────────────────────────────────────────────────────
@@ -41,7 +47,7 @@ def classify_case(client_name: str, description: str, incident_date: str, prior_
     key_facts, recommended_action, client_acknowledgment.
     """
     try:
-        response = client.messages.create(
+        response = _get_client().messages.create(
             model=MODEL,
             max_tokens=1024,
             system=CLASSIFICATION_SYSTEM_PROMPT,
@@ -124,7 +130,7 @@ def extract_police_report(pdf_base64: str, media_type: str = "application/pdf") 
     Returns a dict with accident details, parties, fault, witnesses, etc.
     """
     try:
-        response = client.messages.create(
+        response = _get_client().messages.create(
             model=MODEL,
             max_tokens=2048,
             system=EXTRACTION_SYSTEM_PROMPT,
