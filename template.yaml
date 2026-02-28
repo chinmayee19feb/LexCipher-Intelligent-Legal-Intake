@@ -208,7 +208,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub lexcipher-dashboard-${Stage}
-      CodeUri: lexcipher-dashboard/
+      CodeUri: dashboard/
       Handler: handler.handler
       Description: Returns recent intakes for the operations dashboard
       Policies:

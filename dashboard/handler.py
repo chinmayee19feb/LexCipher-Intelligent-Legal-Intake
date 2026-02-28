@@ -1,51 +1,69 @@
-cat > ~/LexCipher/dashboard/handler.py << 'EOF'
-import json, boto3, logging, os
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-dynamodb = boto3.resource('dynamodb')
-TABLE_NAME = os.environ.get('DYNAMODB_TABLE', 'lexcipher-intakes')
-CORS = {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS'}
+import json
+import os
+import boto3
+from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
-def handler(event, context):
-    method = event.get('httpMethod', 'GET')
-    path = event.get('path', '/')
+dynamodb  = boto3.resource('dynamodb')
+TABLE     = os.environ.get('DYNAMODB_TABLE', 'lexcipher-intakes')
+
+CORS = {
+    'Access-Control-Allow-Origin':  '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET,PATCH,OPTIONS',
+}
+
+def lambda_handler(event, context):
+    method = event.get('httpMethod', '')
+    path   = event.get('path', '')
+
     if method == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
+
     try:
-        if method == 'GET' and path == '/intakes':
-            return get_intakes()
-        elif method == 'GET' and '/intakes/' in path:
-            return get_intake(event.get('pathParameters', {}).get('intake_id'))
-        elif method == 'PATCH' and '/status' in path:
-            body = json.loads(event.get('body') or '{}')
-            return update_status(event.get('pathParameters', {}).get('intake_id'), body.get('status'))
-        return _resp(404, {'error': 'Not found'})
+        table = dynamodb.Table(TABLE)
+
+        # GET /intakes — list all
+        if method == 'GET' and path.endswith('/intakes'):
+            result = table.scan(Limit=50)
+            items  = result.get('Items', [])
+            items.sort(key=lambda x: x.get('submitted_at', ''), reverse=True)
+            return ok({'intakes': items})
+
+        # GET /intakes/{id} — single intake
+        if method == 'GET' and '/intakes/' in path:
+            intake_id = path.split('/intakes/')[-1]
+            result = table.get_item(Key={'intake_id': intake_id})
+            item   = result.get('Item')
+            if not item:
+                return err(404, 'Intake not found')
+            return ok(item)
+
+        # PATCH /intakes/{id}/status — update status
+        if method == 'PATCH' and '/status' in path:
+            intake_id = path.split('/intakes/')[-1].replace('/status', '')
+            body      = json.loads(event.get('body') or '{}')
+            status    = body.get('status')
+            if not status:
+                return err(400, 'Missing status field')
+            table.update_item(
+                Key={'intake_id': intake_id},
+                UpdateExpression='SET #s = :s',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':s': status},
+            )
+            return ok({'intake_id': intake_id, 'status': status})
+
+        return err(404, 'Not found')
+
+    except ClientError as e:
+        return err(500, str(e))
     except Exception as e:
-        logger.error(f"Error: {e}")
-        return _resp(500, {'error': str(e)})
+        return err(500, str(e))
 
-def get_intakes():
-    items = dynamodb.Table(TABLE_NAME).scan(Limit=50).get('Items', [])
-    items.sort(key=lambda x: x.get('submitted_at', ''), reverse=True)
-    return _resp(200, {'intakes': items, 'count': len(items)})
 
-def get_intake(intake_id):
-    if not intake_id:
-        return _resp(400, {'error': 'intake_id required'})
-    item = dynamodb.Table(TABLE_NAME).get_item(Key={'intake_id': intake_id}).get('Item')
-    return _resp(200, item) if item else _resp(404, {'error': 'Not found'})
+def ok(body):
+    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(body, default=str)}
 
-def update_status(intake_id, status):
-    if not intake_id or not status:
-        return _resp(400, {'error': 'intake_id and status required'})
-    dynamodb.Table(TABLE_NAME).update_item(
-        Key={'intake_id': intake_id},
-        UpdateExpression='SET #s = :s',
-        ExpressionAttributeNames={'#s': 'status'},
-        ExpressionAttributeValues={':s': status}
-    )
-    return _resp(200, {'intake_id': intake_id, 'status': status})
-
-def _resp(code, body):
-    return {'statusCode': code, 'headers': CORS, 'body': json.dumps(body, default=str)}
-EOF
+def err(code, msg):
+    return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg})}
