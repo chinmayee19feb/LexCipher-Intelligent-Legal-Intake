@@ -33,7 +33,7 @@ URGENCY:
 - low:      SOL > 1 year AND minor injuries
 
 NEW YORK STATUTE OF LIMITATIONS:
-- Vehicle Accident:      3 years from incident
+- Vehicle Accident:      8 years from incident
 - Slip and Fall:         3 years from incident
 - Medical Malpractice:   2.5 years from incident (or discovery)
 - Workplace Injury:      3 years (or 2 years for workers comp)
