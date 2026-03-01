@@ -257,6 +257,12 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /intakes/{intake_id}
             Method: DELETE
+        IntakeOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /intakes/{intake_id}
+            Method: OPTIONS
         PortalGet:
           Type: Api
           Properties:
