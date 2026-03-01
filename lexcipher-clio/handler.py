@@ -27,18 +27,20 @@ FIELD_IDS = {
     "Opposing Party Vehicle":      18804068,
     "Police Report Number":        18804083,
     "Statute of Limitations Date": 18804098,
+    "Client Vehicle Plate":        18807653,
+    "Client Pronoun":              18807668,
+    "Number Injured":              18807683,
 }
 
 # ── Email constants ───────────────────────────────────────────────────────────
 FROM_EMAIL       = os.environ.get("FROM_EMAIL", "ch.pradhan606@gmail.com")
 AUTOMATION_EMAIL = os.environ.get("ATTORNEY_EMAIL", "lexcipher.submission@gmail.com")
 
-# Seasonal booking links (February = winter)
+# Seasonal booking links (per Andrew's request)
+# March-August = in-office, September-February = virtual
 BOOKING_LINKS = {
-    "winter": "https://calendly.com/richardsandlaw/consultation-winter",
-    "spring": "https://calendly.com/richardsandlaw/consultation-spring",
-    "summer": "https://calendly.com/richardsandlaw/consultation-summer",
-    "fall":   "https://calendly.com/richardsandlaw/consultation-fall",
+    "in_office": "https://calendly.com/richardsandlaw/consultation-in-office",
+    "virtual":   "https://calendly.com/richardsandlaw/consultation-virtual",
 }
 
 CORS = {
@@ -182,14 +184,17 @@ def _build_custom_field_updates(verified_data: dict) -> list:
     Returns list ready for the PATCH /matters payload.
     """
     mapping = {
-        "accident_date":             ("Accident Date",               "date"),
-        "accident_location":         ("Accident Location",           "text"),
-        "narrative":                 ("Accident Description",        "text"),
-        "client_vehicle_make_model": ("Client Vehicle",              "text"),
-        "opposing_party_name":       ("Opposing Party Name",         "text"),
-        "opposing_party_vehicle":    ("Opposing Party Vehicle",      "text"),
-        "police_report_number":      ("Police Report Number",        "text"),
-        "sol_date":                  ("Statute of Limitations Date", "date"),
+        "accident_date":                    ("Accident Date",               "date"),
+        "accident_location":                ("Accident Location",           "text"),
+        "narrative":                        ("Accident Description",        "text"),
+        "client_vehicle_make_model":        ("Client Vehicle",              "text"),
+        "opposing_party_name":              ("Opposing Party Name",         "text"),
+        "opposing_party_vehicle":           ("Opposing Party Vehicle",      "text"),
+        "police_report_number":             ("Police Report Number",        "text"),
+        "sol_date":                         ("Statute of Limitations Date", "date"),
+        "client_vehicle_plate":             ("Client Vehicle Plate",        "text"),
+        "client_pronoun":                   ("Client Pronoun",              "text"),
+        "number_injured":                   ("Number Injured",              "text"),
     }
 
     updates = []
@@ -204,8 +209,8 @@ def _build_custom_field_updates(verified_data: dict) -> list:
             continue
 
         updates.append({
-            "id":    field_id,
-            "value": value,    # dates should already be "YYYY-MM-DD"
+            "custom_field": {"id": field_id},
+            "value": value,
         })
 
     return updates
@@ -292,20 +297,18 @@ def _create_sol_calendar_event(headers: dict, sol_date: str, client_name: str) -
 # ── Email ─────────────────────────────────────────────────────────────────────
 
 def _get_seasonal_booking_link() -> str:
-    """Return the right booking link based on current month."""
+    """Return the right booking link based on current month.
+    March-August = in-office, September-February = virtual."""
     month = datetime.now().month
-    if month in (12, 1, 2):
-        return BOOKING_LINKS["winter"]
-    elif month in (3, 4, 5):
-        return BOOKING_LINKS["spring"]
-    elif month in (6, 7, 8):
-        return BOOKING_LINKS["summer"]
+    if 3 <= month <= 8:
+        return BOOKING_LINKS["in_office"]
     else:
-        return BOOKING_LINKS["fall"]
+        return BOOKING_LINKS["virtual"]
 
 
-def _calculate_sol(incident_date: str, years: int = 3) -> str | None:
-    """Calculate SOL date = incident_date + years. Returns YYYY-MM-DD or None."""
+def _calculate_sol(incident_date: str, years: int = 8) -> str | None:
+    """Calculate SOL date = incident_date + years. Returns YYYY-MM-DD or None.
+    Andrew requested 8 years after the accident date."""
     try:
         dt = datetime.strptime(incident_date, "%Y-%m-%d")
         sol = dt + relativedelta(years=years)

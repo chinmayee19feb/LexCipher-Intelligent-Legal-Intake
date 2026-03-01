@@ -88,6 +88,8 @@ def save_intake(
         item["charges_filed"]             = police_report.get("charges_filed")
         item["narrative_summary"]         = police_report.get("narrative_summary") or police_report.get("narrative")
         item["sol_date"]                  = police_report.get("sol_date")
+        item["client_pronoun"]            = police_report.get("client_pronoun")
+        item["number_injured"]            = police_report.get("number_injured")
 
     # Remove None values — DynamoDB doesn't accept nulls
     item = {k: v for k, v in item.items() if v is not None}

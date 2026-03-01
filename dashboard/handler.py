@@ -78,18 +78,29 @@ def lambda_handler(event, context):
                 return err(404, 'Intake not found')
             return ok(_reshape(item))
 
-        # PATCH /intakes/{id}/status — update status
+        # PATCH /intakes/{id}/status — update status (and optionally save verified data)
         if method == 'PATCH' and '/status' in path:
             intake_id = path.split('/intakes/')[-1].replace('/status', '')
             body      = json.loads(event.get('body') or '{}')
             status    = body.get('status')
             if not status:
                 return err(400, 'Missing status field')
+
+            update_expr   = 'SET #s = :s'
+            attr_names    = {'#s': 'status'}
+            attr_values   = {':s': status}
+
+            # If paralegal is verifying, also save their verified data
+            verified_data = body.get('verified_data')
+            if verified_data and status == 'verified':
+                update_expr += ', verified_data = :vd'
+                attr_values[':vd'] = verified_data
+
             table.update_item(
                 Key={'intake_id': intake_id},
-                UpdateExpression='SET #s = :s',
-                ExpressionAttributeNames={'#s': 'status'},
-                ExpressionAttributeValues={':s': status},
+                UpdateExpression=update_expr,
+                ExpressionAttributeNames=attr_names,
+                ExpressionAttributeValues=attr_values,
             )
             return ok({'intake_id': intake_id, 'status': status})
 
@@ -106,9 +117,18 @@ def _reshape(item):
     Restructure flat DynamoDB fields into the nested 'extracted' object
     that the dashboard JS expects (c.extracted.accident_date, etc.).
     Also maps field name differences between db.py and dashboard.
+    Prefers paralegal-verified data over raw AI extraction.
     """
     if item.get('extracted'):
         return item  # already has nested extracted (e.g. from demo data)
+
+    # If paralegal has verified data, use that (overrides AI extraction)
+    vd = item.get('verified_data')
+    if vd and isinstance(vd, dict):
+        item['extracted'] = vd
+        if not item.get('submitted_at') and item.get('created_at'):
+            item['submitted_at'] = item['created_at']
+        return item
 
     if not item.get('has_police_report'):
         item['extracted'] = None
@@ -132,6 +152,8 @@ def _reshape(item):
         'charges_filed':                    item.get('charges_filed'),
         'narrative':                        item.get('narrative_summary') or item.get('narrative'),
         'sol_date':                         item.get('sol_date'),
+        'client_pronoun':                   item.get('client_pronoun'),
+        'number_injured':                   item.get('number_injured'),
     }
 
     # Also ensure submitted_at exists for the dashboard

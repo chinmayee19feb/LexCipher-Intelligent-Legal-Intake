@@ -94,7 +94,10 @@ RESPONSE FORMAT:
   "witnesses": ["<witness name and contact or null>"],
   "charges_filed": "<any charges filed or null>",
   "narrative_summary": "<1-2 sentence summary of what the report says happened>",
-  "sol_date": "<YYYY-MM-DD statute of limitations deadline — 3 years from accident date, or null>"
+  "sol_date": "<YYYY-MM-DD statute of limitations deadline — 8 years from accident date, or null>",
+  "client_vehicle_plate": "<client vehicle plate/registration number or null>",
+  "client_pronoun": "<his or her — based on the client's apparent gender from name/report, or their>",
+  "number_injured": "<number of people injured as reported, e.g. 1, 2, 0, or null>"
 }"""
 
 
