@@ -23,11 +23,9 @@ from extractor import extract_for_clio_from_s3
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# ── Clio Constants (real IDs from setup) ─────────────────────────────────────
+# ── Clio Constants ────────────────────────────────────────────────────────
 CLIO_BASE_URL  = "https://app.clio.com/api/v4"
-MATTER_ID      = 1767082208       # 00001-Reyes
-CONTACT_ID     = 2344505663       # Guillermo Reyes
-USER_ID        = 358936313        # Andrew Richards
+USER_ID        = 358936313        # Andrew Richards (responsible attorney)
 
 FIELD_IDS = {
     "Accident Date":               18803993,
@@ -56,7 +54,6 @@ BOOKING_LINKS = {
 
 # Clio Document IDs
 DOCUMENT_TEMPLATE_ID = 9157148
-MATTER_FOLDER_ID     = 18605766188
 
 CORS = {
     "Access-Control-Allow-Origin":  "*",
@@ -116,6 +113,8 @@ def handler(event, context):
         # ── 1. Clio API sync (non-fatal — don't block email/DB on Clio errors) ──
         calendar_id = None
         clio_success = False
+        matter_id = None
+        opposing_name = verified_data.get("opposing_party_name", "Unknown")
         try:
             access_token = _get_access_token()
             headers      = {
@@ -123,17 +122,26 @@ def handler(event, context):
                 "Content-Type":  "application/json",
             }
 
+            # Create Contact in Clio
+            contact_id = _create_contact(headers, client_name, client_email)
+            logger.info(f"Contact created: {contact_id}")
+
+            # Create Matter in Clio
+            matter_desc = f"{client_name.split()[-1]} v {opposing_name.split(',')[0].strip()} - Personal Injury"
+            matter_id = _create_matter(headers, contact_id, matter_desc)
+            logger.info(f"Matter created: {matter_id}")
+
             # Update Clio Matter custom fields
             field_updates = _build_custom_field_updates(verified_data)
-            matter_result = _update_matter_custom_fields(headers, field_updates)
+            matter_result = _update_matter_custom_fields(headers, field_updates, matter_id)
             logger.info(f"Matter updated: {matter_result}")
 
-            # Update Matter status → Active
-            _update_matter_status(headers, "Open")
+            # Update Matter status to Open
+            _update_matter_status(headers, "Open", matter_id)
 
             # Create SOL calendar event
             sol_date     = verified_data.get("sol_date") or _calculate_sol(incident_date)
-            calendar_id  = _create_sol_calendar_event(headers, sol_date, client_name)
+            calendar_id  = _create_sol_calendar_event(headers, sol_date, client_name, matter_id, matter_desc)
             logger.info(f"Calendar event created: {calendar_id}")
             clio_success = True
 
@@ -155,12 +163,13 @@ def handler(event, context):
 
         # ── 3. Upload retainer to Clio Matter Documents ──────────────────────
         clio_doc_id = None
-        if retainer_pdf and clio_success:
+        if retainer_pdf and clio_success and matter_id:
             try:
                 clio_doc_id = _upload_document_to_clio(
-                    headers  = headers,
+                    headers   = headers,
                     pdf_bytes = retainer_pdf,
                     filename  = f"Retainer_Agreement_{client_name.replace(' ', '_')}",
+                    matter_id = matter_id,
                 )
                 logger.info(f"Retainer uploaded to Clio: doc_id={clio_doc_id}")
             except Exception as upload_err:
@@ -182,14 +191,14 @@ def handler(event, context):
             logger.error(f"Retainer email failed: {email_err}")
 
         # ── 5. Mark intake as synced in DynamoDB (always runs) ────────────────
-        _mark_synced(intake_id, calendar_id)
+        _mark_synced(intake_id, calendar_id, matter_id)
 
         return {
             "statusCode": 200,
             "headers":    CORS,
             "body":       json.dumps({
                 "success":      True,
-                "matter_id":    MATTER_ID,
+                "matter_id":    matter_id,
                 "calendar_id":  calendar_id,
                 "sol_date":     sol_date,
                 "email_sent_to": client_email,
@@ -217,6 +226,59 @@ def _get_access_token() -> str:
         if not token:
             raise RuntimeError("CLIO_ACCESS_TOKEN not found in SSM or environment")
         return token
+
+
+def _create_contact(headers: dict, client_name: str, client_email: str) -> int:
+    """Create a new Contact in Clio for the client. Returns contact_id."""
+    name_parts = client_name.strip().split()
+    first_name = name_parts[0] if name_parts else client_name
+    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+    payload = {
+        "data": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "type": "Person",
+        }
+    }
+
+    # Add email if provided
+    if client_email:
+        payload["data"]["email_addresses"] = [
+            {"name": "Work", "address": client_email, "default_email": True}
+        ]
+
+    r = requests.post(
+        f"{CLIO_BASE_URL}/contacts",
+        headers=headers,
+        json=payload,
+    )
+    r.raise_for_status()
+    contact_id = r.json()["data"]["id"]
+    logger.info(f"Created Clio contact: {contact_id} ({client_name})")
+    return contact_id
+
+
+def _create_matter(headers: dict, contact_id: int, description: str) -> int:
+    """Create a new Matter in Clio linked to the contact. Returns matter_id."""
+    payload = {
+        "data": {
+            "client": {"id": contact_id},
+            "description": description,
+            "status": "Pending",
+            "responsible_attorney": {"id": USER_ID},
+        }
+    }
+
+    r = requests.post(
+        f"{CLIO_BASE_URL}/matters",
+        headers=headers,
+        json=payload,
+    )
+    r.raise_for_status()
+    matter_id = r.json()["data"]["id"]
+    logger.info(f"Created Clio matter: {matter_id} ({description})")
+    return matter_id
 
 
 def _build_custom_field_updates(verified_data: dict) -> list:
@@ -257,7 +319,7 @@ def _build_custom_field_updates(verified_data: dict) -> list:
     return updates
 
 
-def _update_matter_custom_fields(headers: dict, field_updates: list) -> dict:
+def _update_matter_custom_fields(headers: dict, field_updates: list, matter_id: int) -> dict:
     """PATCH the matter with new custom field values.
     Must first fetch existing custom_field_value IDs from the matter,
     then use those IDs (not custom_field IDs) in the update payload."""
@@ -267,7 +329,7 @@ def _update_matter_custom_fields(headers: dict, field_updates: list) -> dict:
 
     # Step 1: Fetch existing custom_field_values to get their IDs
     r = requests.get(
-        f"{CLIO_BASE_URL}/matters/{MATTER_ID}",
+        f"{CLIO_BASE_URL}/matters/{matter_id}",
         headers=headers,
         params={"fields": "id,custom_field_values{id,custom_field}"},
     )
@@ -301,7 +363,7 @@ def _update_matter_custom_fields(headers: dict, field_updates: list) -> dict:
     }
 
     r = requests.patch(
-        f"{CLIO_BASE_URL}/matters/{MATTER_ID}",
+        f"{CLIO_BASE_URL}/matters/{matter_id}",
         headers=headers,
         json=payload,
     )
@@ -309,11 +371,11 @@ def _update_matter_custom_fields(headers: dict, field_updates: list) -> dict:
     return r.json()
 
 
-def _update_matter_status(headers: dict, status: str = "Open") -> None:
+def _update_matter_status(headers: dict, status: str = "Open", matter_id: int = None) -> None:
     """Set matter status to Active once case is accepted."""
     payload = {"data": {"status": status}}
     r = requests.patch(
-        f"{CLIO_BASE_URL}/matters/{MATTER_ID}",
+        f"{CLIO_BASE_URL}/matters/{matter_id}",
         headers = headers,
         json    = payload,
     )
@@ -321,7 +383,7 @@ def _update_matter_status(headers: dict, status: str = "Open") -> None:
     logger.info(f"Matter status → {status}")
 
 
-def _create_sol_calendar_event(headers: dict, sol_date: str, client_name: str) -> int | None:
+def _create_sol_calendar_event(headers: dict, sol_date: str, client_name: str, matter_id: int = None, matter_desc: str = "") -> int | None:
     """
     Create a calendar event in Clio for the Statute of Limitations deadline.
     Returns the calendar entry id or None if it fails.
@@ -336,21 +398,24 @@ def _create_sol_calendar_event(headers: dict, sol_date: str, client_name: str) -
 
     payload = {
         "data": {
-            "summary":     f"⚠️ SOL DEADLINE — {client_name} (Reyes v Francois)",
+            "summary":     f"⚠️ SOL DEADLINE — {client_name} ({matter_desc or 'Personal Injury'})",
             "description": (
                 f"STATUTE OF LIMITATIONS DEADLINE\n"
                 f"Client: {client_name}\n"
-                f"Matter: Reyes v Francois — Personal Injury\n"
-                f"Matter ID: {MATTER_ID}\n\n"
+                f"Matter: {matter_desc or 'Personal Injury'}\n"
+                f"Matter ID: {matter_id}\n\n"
                 f"The statute of limitations expires on {sol_date}.\n"
                 f"A lawsuit MUST be filed before this date or the right to sue is permanently lost."
             ),
             "start_at":    start_dt,
             "end_at":      end_dt,
             "all_day":     False,
-            "matter":      {"id": MATTER_ID},
         }
     }
+
+    # Link to matter if available
+    if matter_id:
+        payload["data"]["matter"] = {"id": matter_id}
 
     try:
         r = requests.post(
@@ -545,7 +610,7 @@ def _generate_retainer_pdf(client_name: str, verified_data: dict, sol_date: str 
     return buf.getvalue()
 
 
-def _upload_document_to_clio(headers: dict, pdf_bytes: bytes, filename: str) -> int | None:
+def _upload_document_to_clio(headers: dict, pdf_bytes: bytes, filename: str, matter_id: int = None) -> int | None:
     """Upload generated retainer PDF to Clio Matter documents.
     Uses multipart upload: first create the document, then upload the file."""
     try:
@@ -553,10 +618,10 @@ def _upload_document_to_clio(headers: dict, pdf_bytes: bytes, filename: str) -> 
         create_payload = {
             "data": {
                 "name": filename,
-                "parent": {"id": MATTER_FOLDER_ID, "type": "Folder"},
-                "matter": {"id": MATTER_ID},
             }
         }
+        if matter_id:
+            create_payload["data"]["matter"] = {"id": matter_id}
         r = requests.post(
             f"{CLIO_BASE_URL}/documents",
             headers=headers,
@@ -774,7 +839,7 @@ def _send_retainer_email(
 
 # ── DynamoDB ──────────────────────────────────────────────────────────────────
 
-def _mark_synced(intake_id: str, calendar_id: int | None) -> None:
+def _mark_synced(intake_id: str, calendar_id: int | None, matter_id: int | None = None) -> None:
     """Mark the DynamoDB intake record as synced to Clio."""
     update_expr = "SET clio_synced = :s, clio_matter_id = :m, clio_calendar_id = :c, updated_at = :u, #st = :st"
     TABLE.update_item(
@@ -783,7 +848,7 @@ def _mark_synced(intake_id: str, calendar_id: int | None) -> None:
         ExpressionAttributeNames = {"#st": "status"},
         ExpressionAttributeValues = {
             ":s": True,
-            ":m": str(MATTER_ID),
+            ":m": str(matter_id) if matter_id else "N/A",
             ":c": str(calendar_id) if calendar_id else "N/A",
             ":u": datetime.utcnow().isoformat(),
             ":st": "active",
