@@ -217,21 +217,52 @@ def _build_custom_field_updates(verified_data: dict) -> list:
 
 
 def _update_matter_custom_fields(headers: dict, field_updates: list) -> dict:
-    """PATCH the matter with new custom field values."""
+    """PATCH the matter with new custom field values.
+    Must first fetch existing custom_field_value IDs from the matter,
+    then use those IDs (not custom_field IDs) in the update payload."""
     if not field_updates:
         logger.warning("No field updates to apply")
         return {}
 
+    # Step 1: Fetch existing custom_field_values to get their IDs
+    r = requests.get(
+        f"{CLIO_BASE_URL}/matters/{MATTER_ID}",
+        headers=headers,
+        params={"fields": "id,custom_field_values{id,custom_field}"},
+    )
+    r.raise_for_status()
+    existing = r.json().get("data", {}).get("custom_field_values", [])
+
+    # Build map: custom_field.id -> custom_field_value.id
+    cf_id_to_value_id = {}
+    for cfv in existing:
+        cf = cfv.get("custom_field", {})
+        cf_id_to_value_id[cf.get("id")] = cfv.get("id")
+
+    # Step 2: Build update payload using value IDs
+    updates = []
+    for update in field_updates:
+        cf_id = update["custom_field"]["id"]
+        value_id = cf_id_to_value_id.get(cf_id)
+        if value_id:
+            updates.append({
+                "id": value_id,
+                "value": update["value"],
+            })
+        else:
+            # New field, no existing value — use custom_field format
+            updates.append(update)
+
     payload = {
         "data": {
-            "custom_field_values": field_updates
+            "custom_field_values": updates
         }
     }
 
     r = requests.patch(
         f"{CLIO_BASE_URL}/matters/{MATTER_ID}",
-        headers = headers,
-        json    = payload,
+        headers=headers,
+        json=payload,
     )
     r.raise_for_status()
     return r.json()
