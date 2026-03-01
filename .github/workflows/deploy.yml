@@ -103,19 +103,25 @@ jobs:
       - name: Inject API URL into frontend
         run: |
           API_URL="${{ steps.outputs.outputs.api_url }}"
-          # Patch intake form
-          sed -i "s|https://api.richardsandlaw.com/intake|${API_URL}/intake|g" \
+          echo "Injecting API URL: ${API_URL}"
+
+          # Create config.js with API URLs
+          cat > dashboard/config.js << JSEOF
+          window.INTAKES_API_URL = '${API_URL}/intakes';
+          window.CLIO_API_URL    = '${API_URL}/clio';
+          JSEOF
+
+          # Inject <script src="config.js"> before main <script> in dashboard
+          # (only if not already present)
+          if ! grep -q 'config.js' dashboard/index.html; then
+            sed -i 's|<script>|<script src="config.js"></script>\n<script>|' \
+              dashboard/index.html
+          fi
+
+          # Inject API_URL into intake form's fetch URL
+          # The form has a hardcoded API URL - update it to the stack output
+          sed -i "s|https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod|${API_URL}|g" \
             intake-form/index.html
-          # Patch dashboard
-          sed -i "s|https://api.richardsandlaw.com/clio|${API_URL}/clio|g" \
-            dashboard/index.html
-          sed -i "s|window.CLIO_API_URL.*||g" dashboard/index.html
-          # Write API config
-          cat > dashboard/config.js << EOF
-          window.CLIO_API_URL   = '${API_URL}/clio';
-          window.INTAKE_API_URL = '${API_URL}/intake';
-          window.INTAKES_API_URL= '${API_URL}/intakes';
-          EOF
 
       # ── 11. Deploy frontend to S3 ────────────────────────────────────────────
       - name: Deploy frontend to S3
@@ -124,16 +130,16 @@ jobs:
           # Upload intake form
           aws s3 cp intake-form/index.html \
             s3://${BUCKET}/index.html \
-            --content-type "text/html" \
+            --content-type "text/html; charset=utf-8" \
             --cache-control "max-age=300"
           # Upload dashboard
           aws s3 cp dashboard/index.html \
             s3://${BUCKET}/dashboard/index.html \
-            --content-type "text/html" \
+            --content-type "text/html; charset=utf-8" \
             --cache-control "max-age=300"
           aws s3 cp dashboard/config.js \
             s3://${BUCKET}/dashboard/config.js \
-            --content-type "application/javascript" \
+            --content-type "application/javascript; charset=utf-8" \
             --cache-control "no-cache"
 
       # ── 12. Invalidate CloudFront cache ──────────────────────────────────────
