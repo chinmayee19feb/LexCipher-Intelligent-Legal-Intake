@@ -364,12 +364,6 @@ const CLIO_API = window.CLIO_API_URL    || 'https://b1o6dj4cm4.execute-api.us-ea
 let ALL = [], currentView = 'classic', advView = 'overview', selectedId = null;
 let clFilter_ = 'all';
 
-const DEMO = [
-  {intake_id:'INT-001',client_name:'Guillermo Reyes',client_email:'g.reyes@email.com',client_phone:'+1 (973) 555-0142',submitted_at:new Date(Date.now()-3*3600000).toISOString(),status:'new',case_type:'PI \u2014 Vehicle Accident',urgency:'critical',viability_score:8,sol_flag:true,has_police_report:true,clio_synced:false,description:'Two-impact collision on Flatbush Avenue. Neck and back injuries. Commercial vehicle involved.',key_facts:['Two-impact collision \u2014 reckless driving pattern','Police report MV-2018-078-002001 confirms fault','SOL expires December 6, 2026 \u2014 urgent filing needed','Commercial vehicle \u2014 employer liability possible'],recommended_action:'Accept immediately. High viability. SOL within 10 months.',extracted:{accident_date:'2018-12-06',accident_location:'Flatbush Ave at Plaza Street East, Brooklyn, NY',police_report_number:'MV-2018-078-002001',client_vehicle_make_model:'2010 Freightliner Box Truck',opposing_party_name:'Lionel Francois',opposing_party_vehicle:'2011 Ford Van \u2014 NY Plate 47164BB',opposing_party_insurance_company:'State Farm Insurance',fault_determination:'V2 at fault \u2014 crossed from bus lane',sol_date:'2026-12-06',narrative:'V1 (Reyes) struck twice by V2 (Francois) who crossed from bus lane.'}},
-  {intake_id:'INT-002',client_name:'Maria Santana',client_email:'m.santana@email.com',client_phone:'+1 (212) 555-0287',submitted_at:new Date(Date.now()-5*3600000).toISOString(),status:'new',case_type:'PI \u2014 Slip and Fall',urgency:'high',viability_score:6,sol_flag:false,has_police_report:false,clio_synced:false,description:'Slipped on ice outside grocery store entrance. Fractured wrist. No warning signs posted.',key_facts:['Premises liability \u2014 store duty of care','No warning signs = clear negligence','Fractured wrist \u2014 documented at ER','Surveillance footage may exist'],recommended_action:'Accept. Request medical records and subpoena store surveillance.',extracted:null},
-  {intake_id:'INT-003',client_name:'James Thornton',client_email:'jthornton@business.net',client_phone:'+1 (718) 555-0391',submitted_at:new Date(Date.now()-26*3600000).toISOString(),status:'declined',case_type:'Out of Scope',urgency:'low',viability_score:1,sol_flag:false,has_police_report:false,clio_synced:false,description:'Business partner dispute over profit sharing. No written partnership agreement.',key_facts:['Business dispute \u2014 not personal injury','No written contract','Out of practice scope'],recommended_action:'Decline. Refer to business litigation specialist.',extracted:null}
-];
-
 // -- Role management -----------------------------------------------------------
 let currentRole = 'paralegal';
 function switchRole(role) {
@@ -385,8 +379,7 @@ async function loadData() {
     if (!r.ok) throw new Error();
     const d = await r.json();
     ALL = d.intakes || [];
-    if (!ALL.length) ALL = DEMO;
-  } catch(e) { ALL = DEMO; }
+  } catch(e) { ALL = []; }
   // Normalize: db.py used "pending" before fix, dashboard expects "new"
   ALL.forEach(i => {
     if (i.status === 'pending') i.status = 'new';
