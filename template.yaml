@@ -214,6 +214,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref IntakeTable
+        - S3ReadPolicy:
+            BucketName: !Ref PdfBucket
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref IntakeTable
+          PDF_BUCKET: !Ref PdfBucket
       Events:
         DashboardGet:
           Type: Api
@@ -263,6 +269,12 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /intakes/{intake_id}
             Method: OPTIONS
+        PdfGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /intakes/{intake_id}/pdf
+            Method: GET
         PortalGet:
           Type: Api
           Properties:

@@ -5,7 +5,9 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 dynamodb  = boto3.resource('dynamodb')
+s3_client = boto3.client('s3')
 TABLE     = os.environ.get('DYNAMODB_TABLE', 'lexcipher-intakes')
+PDF_BUCKET = os.environ.get('PDF_BUCKET', 'lexcipher-police-reports')
 
 CORS = {
     'Access-Control-Allow-Origin':  '*',
@@ -120,6 +122,23 @@ def lambda_handler(event, context):
             table.delete_item(Key={'intake_id': intake_id})
             return ok({'deleted': intake_id})
 
+        # GET /intakes/{id}/pdf — get presigned URL for police report PDF
+        if method == 'GET' and '/pdf' in path:
+            intake_id = path.split('/intakes/')[-1].replace('/pdf', '')
+            result = table.get_item(Key={'intake_id': intake_id})
+            item = result.get('Item')
+            if not item or not item.get('pdf_s3_key'):
+                return err(404, 'No PDF found for this intake')
+            try:
+                url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': PDF_BUCKET, 'Key': item['pdf_s3_key']},
+                    ExpiresIn=3600,
+                )
+                return ok({'url': url})
+            except Exception as e:
+                return err(500, f'Failed to generate PDF URL: {str(e)}')
+
         return err(404, 'Not found')
 
     except ClientError as e:
@@ -174,6 +193,10 @@ def _reshape(item):
         'sol_date':                         item.get('sol_date'),
         'number_injured':                   item.get('number_injured'),
     }
+
+    # Pass pdf_s3_key at top level for the View PDF button
+    if item.get('pdf_s3_key'):
+        item['pdf_s3_key'] = item['pdf_s3_key']
 
     # Also ensure submitted_at exists for the dashboard
     if not item.get('submitted_at') and item.get('created_at'):

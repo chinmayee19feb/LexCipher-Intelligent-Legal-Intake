@@ -506,7 +506,10 @@ function openCase(id) {
       </div>
 
       ${ext.accident_date?`<div class="cl-section">
-        <div class="cl-section-title">Police Report Extraction</div>
+        <div class="cl-section-title" style="display:flex;align-items:center;justify-content:space-between">
+          Police Report Extraction
+          ${c.has_police_report?'<button onclick="viewPoliceReport(\''+c.intake_id+'\')" style="font-size:11px;padding:4px 12px;background:#1B3A6B;color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:Georgia,serif">\uD83D\uDCC4 View Police Report</button>':''}
+        </div>
         <div class="cl-extract-grid">
           <div class="cl-ext-row"><div class="cl-ext-label">Accident Date</div><div class="cl-ext-val">${ext.accident_date}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Accident Time</div><div class="cl-ext-val">${ext.accident_time||'\u2014'}</div></div>
@@ -784,7 +787,10 @@ function openModal() {
   if(!c) return;
   const ext=c.extracted||{};
   document.getElementById('modal-body').innerHTML=`
-    <div style="font-size:13px;color:var(--muted);margin-bottom:18px;padding:10px 12px;background:var(--light);border-radius:6px;border-left:3px solid var(--gold)">Review all AI-extracted fields before approving. Edit anything that's incorrect.</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:18px;padding:10px 12px;background:var(--light);border-radius:6px;border-left:3px solid var(--gold);display:flex;align-items:center;justify-content:space-between">
+      <span>Review all AI-extracted fields before approving. Edit anything that's incorrect.</span>
+      <button onclick="viewPoliceReport('${c.intake_id}')" style="font-size:11px;padding:4px 12px;background:#1B3A6B;color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:Georgia,serif;white-space:nowrap;margin-left:12px">\uD83D\uDCC4 View PDF</button>
+    </div>
     <div class="v-section"><div class="v-section-title">Accident Details</div><div class="v-grid">
       <div class="v-field"><label>Accident Date</label><input id="vf_accident_date" value="${ext.accident_date||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Accident Time</label><input id="vf_accident_time" value="${ext.accident_time||''}" onchange="markChanged(this)"></div>
@@ -893,6 +899,15 @@ async function deleteCase(id, name) {
     renderAll();
     showToast(`Deleted: ${name}`,'success');
   } catch(e) { showToast('Delete failed: '+e.message,'error'); }
+}
+
+async function viewPoliceReport(id) {
+  try {
+    const r = await fetch(API+'/'+id+'/pdf');
+    const d = await r.json();
+    if(d.url) { window.open(d.url, '_blank'); }
+    else { showToast('No PDF available','error'); }
+  } catch(e) { showToast('Failed to load PDF: '+e.message,'error'); }
 }
 
 loadData();
