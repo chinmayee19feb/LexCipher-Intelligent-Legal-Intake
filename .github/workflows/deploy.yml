@@ -141,6 +141,11 @@ jobs:
             s3://${BUCKET}/dashboard/config.js \
             --content-type "application/javascript; charset=utf-8" \
             --cache-control "no-cache"
+          # Upload client portal
+          aws s3 cp portal/index.html \
+            s3://${BUCKET}/portal/index.html \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "max-age=300"
 
       # ── 12. Invalidate CloudFront cache ──────────────────────────────────────
       - name: Invalidate CloudFront

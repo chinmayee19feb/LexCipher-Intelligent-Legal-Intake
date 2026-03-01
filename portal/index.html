@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Richards &amp; Law - Case Status Portal</title>
+<style>
+  :root {
+    --navy: #1B3A6B;
+    --gold: #C9A84C;
+    --cream: #f5f1eb;
+    --green: #2e7d32;
+    --muted: #888;
+    --light: #f8f6f2;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: var(--cream); color: #333; }
+
+  .header {
+    background: var(--navy); padding: 20px 32px; display: flex; align-items: center; gap: 14px;
+  }
+  .seal {
+    width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: bold; font-size: 14px; font-family: Georgia, serif;
+  }
+  .seal span { color: var(--gold); }
+  .firm-name { color: #fff; font-size: 20px; letter-spacing: .03em; }
+  .firm-name span { color: var(--gold); }
+
+  .container { max-width: 640px; margin: 40px auto; padding: 0 20px; }
+
+  .card {
+    background: #fff; border-radius: 8px; padding: 32px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08); margin-bottom: 24px;
+  }
+
+  .card-title { font-size: 22px; color: var(--navy); margin-bottom: 4px; }
+  .card-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  .ref { display: inline-block; background: var(--light); border: 1px solid #e0d9d0; border-radius: 4px; padding: 2px 10px; font-size: 12px; color: var(--muted); font-family: monospace; margin-bottom: 20px; }
+
+  .status-badge {
+    display: inline-block; padding: 6px 16px; border-radius: 20px;
+    font-size: 14px; font-weight: 600; text-transform: capitalize;
+  }
+  .status-new { background: #e3f2fd; color: #1565c0; }
+  .status-active { background: #e8f5e9; color: #2e7d32; }
+  .status-declined { background: #fce4ec; color: #c62828; }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .info-item label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+  .info-item p { font-size: 15px; color: #333; }
+
+  .timeline { margin-top: 24px; }
+  .timeline-title { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--navy); margin-bottom: 16px; }
+
+  .step { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+  .step-icon {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .step-done { background: #e8f5e9; color: var(--green); }
+  .step-current { background: #e3f2fd; color: #1565c0; }
+  .step-pending { background: #f5f5f5; color: #bbb; }
+
+  .step-text h4 { font-size: 14px; margin-bottom: 2px; }
+  .step-text p { font-size: 12px; color: var(--muted); }
+
+  .message-box {
+    background: var(--light); border-left: 3px solid var(--gold);
+    padding: 16px 20px; border-radius: 0 6px 6px 0; margin-top: 24px;
+    font-size: 14px; line-height: 1.6;
+  }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 16px; }
+  .error { text-align: center; padding: 60px 20px; }
+  .error h2 { color: #c62828; margin-bottom: 8px; }
+  .error p { color: var(--muted); }
+
+  .footer { text-align: center; padding: 24px; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="seal">R<span>&amp;</span>L</div>
+  <div class="firm-name">Richards <span>&amp;</span> Law</div>
+</div>
+
+<div class="container" id="app">
+  <div class="loading" id="loading">Loading your case status...</div>
+</div>
+
+<div class="footer">&copy; 2026 Richards &amp; Law. All rights reserved. This portal is confidential.</div>
+
+<script>
+const API = window.PORTAL_API_URL || 'https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod/portal';
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const app = document.getElementById('app');
+
+  if (!token) {
+    app.innerHTML = '<div class="error"><h2>Invalid Link</h2><p>This portal link appears to be invalid. Please check the link in your email.</p></div>';
+    return;
+  }
+
+  try {
+    const r = await fetch(API + '?token=' + encodeURIComponent(token));
+    if (!r.ok) {
+      app.innerHTML = '<div class="error"><h2>Case Not Found</h2><p>We could not locate your case. Please contact our office if you believe this is an error.</p></div>';
+      return;
+    }
+    const d = await r.json();
+    render(d);
+  } catch (e) {
+    app.innerHTML = '<div class="error"><h2>Connection Error</h2><p>Unable to load your case status. Please try again later.</p></div>';
+  }
+}
+
+function render(c) {
+  const app = document.getElementById('app');
+  const status = c.status || 'new';
+  const statusLabel = status === 'new' ? 'Under Review' : status === 'active' ? 'Accepted' : status === 'declined' ? 'Declined' : status;
+  const statusClass = 'status-' + (status === 'new' ? 'new' : status);
+
+  const steps = [
+    { label: 'Inquiry Received', desc: 'Your form has been submitted', done: true },
+    { label: 'Under Review', desc: 'Our team is evaluating your case', done: status === 'active' || status === 'new', current: status === 'new' },
+    { label: 'Decision', desc: status === 'active' ? 'Your case has been accepted' : status === 'declined' ? 'We are unable to take your case' : 'Pending attorney review', done: status === 'active' || status === 'declined', current: false },
+    { label: 'Next Steps', desc: status === 'active' ? 'Retainer agreement sent \u2014 check your email' : 'Awaiting case decision', done: c.clio_synced, current: status === 'active' && !c.clio_synced },
+  ];
+
+  let stepsHtml = steps.map(s => {
+    const cls = s.done && !s.current ? 'step-done' : s.current ? 'step-current' : 'step-pending';
+    const icon = s.done && !s.current ? '\u2713' : s.current ? '\u2022' : '\u25CB';
+    return '<div class="step"><div class="step-icon ' + cls + '">' + icon + '</div><div class="step-text"><h4>' + s.label + '</h4><p>' + s.desc + '</p></div></div>';
+  }).join('');
+
+  let message = '';
+  if (status === 'new') {
+    message = '<div class="message-box">Thank you for reaching out to Richards &amp; Law. Our team is currently reviewing your inquiry and will be in touch shortly. You do not need to take any action at this time.</div>';
+  } else if (status === 'active') {
+    message = '<div class="message-box">Great news \u2014 Richards &amp; Law has accepted your case. Please check your email for your Retainer Agreement and consultation booking link. Our team will guide you through every step of the process.</div>';
+  } else if (status === 'declined') {
+    message = '<div class="message-box">After careful review, we have determined that your matter falls outside our area of practice. We recommend consulting with an attorney who specializes in this area. We wish you the very best.</div>';
+  }
+
+  app.innerHTML =
+    '<div class="card">' +
+      '<div class="card-title">Your Case Status</div>' +
+      '<div class="card-sub">Richards &amp; Law \u2014 Client Portal</div>' +
+      '<div class="ref">Ref: ' + (c.intake_id_short || '') + '</div>' +
+      '<div style="margin-bottom:20px"><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></div>' +
+      '<div class="info-grid">' +
+        '<div class="info-item"><label>Client</label><p>' + (c.client_name || '') + '</p></div>' +
+        '<div class="info-item"><label>Case Type</label><p>' + (c.case_type || 'Under review') + '</p></div>' +
+        '<div class="info-item"><label>Incident Date</label><p>' + (c.incident_date || '') + '</p></div>' +
+        '<div class="info-item"><label>Police Report</label><p>' + (c.has_police_report ? 'On file' : 'Not submitted') + '</p></div>' +
+      '</div>' +
+      message +
+      '<div class="timeline">' +
+        '<div class="timeline-title">Progress</div>' +
+        stepsHtml +
+      '</div>' +
+    '</div>';
+}
+
+init();
+</script>
+</body>
+</html>

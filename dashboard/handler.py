@@ -23,6 +23,44 @@ def lambda_handler(event, context):
     try:
         table = dynamodb.Table(TABLE)
 
+        # GET /portal?token=xxx — client portal (safe, limited data)
+        if method == 'GET' and '/portal' in path:
+            token = (event.get('queryStringParameters') or {}).get('token', '')
+            if not token:
+                return err(400, 'Token required')
+
+            # Query by portal_token using GSI
+            try:
+                result = table.query(
+                    IndexName='portal_token-index',
+                    KeyConditionExpression=Key('portal_token').eq(token),
+                )
+                items = result.get('Items', [])
+            except Exception:
+                # GSI might not exist — fallback to scan
+                result = table.scan(
+                    FilterExpression='portal_token = :t',
+                    ExpressionAttributeValues={':t': token},
+                )
+                items = result.get('Items', [])
+
+            if not items:
+                return err(404, 'Case not found')
+
+            item = items[0]
+            # Return ONLY client-safe fields — no viability, no key_facts, no other cases
+            safe = {
+                'client_name':       item.get('client_name'),
+                'case_type':         item.get('case_type'),
+                'status':            item.get('status'),
+                'incident_date':     item.get('incident_date'),
+                'has_police_report': item.get('has_police_report', False),
+                'clio_synced':       item.get('clio_synced', False),
+                'created_at':        item.get('created_at'),
+                'intake_id_short':   item.get('intake_id', '')[:8].upper(),
+            }
+            return ok(safe)
+
         # GET /intakes — list all
         if method == 'GET' and path.endswith('/intakes'):
             result = table.scan(Limit=50)

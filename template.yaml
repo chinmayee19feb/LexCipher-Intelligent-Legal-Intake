@@ -239,6 +239,18 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /intakes/{intake_id}/status
             Method: PATCH
+        PortalGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /portal
+            Method: GET
+        PortalOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /portal
+            Method: OPTIONS
 
   # ── API Gateway ───────────────────────────────────────────────────────────
   ApiGateway:

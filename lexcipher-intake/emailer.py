@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 ses            = boto3.client("ses", region_name=os.environ.get("AWS_REGION", "us-east-1"))
 FROM_EMAIL     = os.environ.get("FROM_EMAIL",     "ch.pradhan606@gmail.com")
 ATTORNEY_EMAIL = os.environ.get("ATTORNEY_EMAIL", "lexcipher.submission@gmail.com")
-PORTAL_BASE_URL = os.environ.get("PORTAL_BASE_URL", "https://d1kxxuu61azwve.cloudfront.net/dashboard/index.html")
+PORTAL_BASE_URL = os.environ.get("PORTAL_BASE_URL", "https://d1kxxuu61azwve.cloudfront.net/portal/index.html")
 
 # Urgency badge colors for attorney alert email
 URGENCY_COLORS = {
