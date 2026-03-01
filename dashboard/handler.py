@@ -71,6 +71,23 @@ def lambda_handler(event, context):
             items  = [_reshape(i) for i in items]
             return ok({'intakes': items})
 
+        # GET /intakes/{id}/pdf — get presigned URL for police report PDF
+        if method == 'GET' and '/pdf' in path:
+            intake_id = path.split('/intakes/')[-1].replace('/pdf', '')
+            result = table.get_item(Key={'intake_id': intake_id})
+            item = result.get('Item')
+            if not item or not item.get('pdf_s3_key'):
+                return err(404, 'No PDF found for this intake')
+            try:
+                url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': PDF_BUCKET, 'Key': item['pdf_s3_key']},
+                    ExpiresIn=3600,
+                )
+                return ok({'url': url})
+            except Exception as e:
+                return err(500, f'Failed to generate PDF URL: {str(e)}')
+
         # GET /intakes/{id} — single intake
         if method == 'GET' and '/intakes/' in path:
             intake_id = path.split('/intakes/')[-1]
@@ -121,23 +138,6 @@ def lambda_handler(event, context):
             intake_id = path.split('/intakes/')[-1].rstrip('/')
             table.delete_item(Key={'intake_id': intake_id})
             return ok({'deleted': intake_id})
-
-        # GET /intakes/{id}/pdf — get presigned URL for police report PDF
-        if method == 'GET' and '/pdf' in path:
-            intake_id = path.split('/intakes/')[-1].replace('/pdf', '')
-            result = table.get_item(Key={'intake_id': intake_id})
-            item = result.get('Item')
-            if not item or not item.get('pdf_s3_key'):
-                return err(404, 'No PDF found for this intake')
-            try:
-                url = s3_client.generate_presigned_url(
-                    'get_object',
-                    Params={'Bucket': PDF_BUCKET, 'Key': item['pdf_s3_key']},
-                    ExpiresIn=3600,
-                )
-                return ok({'url': url})
-            except Exception as e:
-                return err(500, f'Failed to generate PDF URL: {str(e)}')
 
         return err(404, 'Not found')
 
