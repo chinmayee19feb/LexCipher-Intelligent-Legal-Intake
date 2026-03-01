@@ -1,204 +1,110 @@
+import json
 import os
-import uuid
-import logging
-from datetime import datetime, timezone
-
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger(__name__)
+dynamodb  = boto3.resource('dynamodb')
+TABLE     = os.environ.get('DYNAMODB_TABLE', 'lexcipher-intakes')
 
-# ── DynamoDB setup ─────────────────────────────────────────────────────────
-TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "lexcipher-intakes")
-dynamodb   = boto3.resource("dynamodb")
-table      = dynamodb.Table(TABLE_NAME)
+CORS = {
+    'Access-Control-Allow-Origin':  '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET,PATCH,OPTIONS',
+}
+
+def lambda_handler(event, context):
+    method = event.get('httpMethod', '')
+    path   = event.get('path', '')
+
+    if method == 'OPTIONS':
+        return {'statusCode': 200, 'headers': CORS, 'body': ''}
+
+    try:
+        table = dynamodb.Table(TABLE)
+
+        # GET /intakes — list all
+        if method == 'GET' and path.endswith('/intakes'):
+            result = table.scan(Limit=50)
+            items  = result.get('Items', [])
+            items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            items  = [_reshape(i) for i in items]
+            return ok({'intakes': items})
+
+        # GET /intakes/{id} — single intake
+        if method == 'GET' and '/intakes/' in path:
+            intake_id = path.split('/intakes/')[-1]
+            result = table.get_item(Key={'intake_id': intake_id})
+            item   = result.get('Item')
+            if not item:
+                return err(404, 'Intake not found')
+            return ok(_reshape(item))
+
+        # PATCH /intakes/{id}/status — update status
+        if method == 'PATCH' and '/status' in path:
+            intake_id = path.split('/intakes/')[-1].replace('/status', '')
+            body      = json.loads(event.get('body') or '{}')
+            status    = body.get('status')
+            if not status:
+                return err(400, 'Missing status field')
+            table.update_item(
+                Key={'intake_id': intake_id},
+                UpdateExpression='SET #s = :s',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':s': status},
+            )
+            return ok({'intake_id': intake_id, 'status': status})
+
+        return err(404, 'Not found')
+
+    except ClientError as e:
+        return err(500, str(e))
+    except Exception as e:
+        return err(500, str(e))
 
 
-# ── Save new intake ────────────────────────────────────────────────────────
-
-def save_intake(
-    client_name:    str,
-    client_email:   str,
-    client_phone:   str,
-    incident_date:  str,
-    prior_attorney: bool,
-    description:    str,
-    classification: dict,
-    has_police_report: bool         = False,
-    pdf_s3_key:        str | None   = None,
-    police_report:     dict | None  = None,
-) -> str:
+def _reshape(item):
     """
-    Save a new intake record to DynamoDB.
-    Returns the generated intake_id.
+    Restructure flat DynamoDB fields into the nested 'extracted' object
+    that the dashboard JS expects (c.extracted.accident_date, etc.).
+    Also maps field name differences between db.py and dashboard.
     """
-    intake_id    = str(uuid.uuid4())
-    portal_token = str(uuid.uuid4())
-    now          = datetime.now(timezone.utc).isoformat()
+    if item.get('extracted'):
+        return item  # already has nested extracted (e.g. from demo data)
 
-    item = {
-        # Keys
-        "intake_id":    intake_id,
-        "portal_token": portal_token,
+    if not item.get('has_police_report'):
+        item['extracted'] = None
+        return item
 
-        # Client info
-        "client_name":    client_name,
-        "client_email":   client_email,
-        "client_phone":   client_phone,
-        "incident_date":  incident_date,
-        "prior_attorney": prior_attorney,
-        "description":    description,
-
-        # AI classification
-        "case_type":             classification.get("case_type", "Out of Scope"),
-        "viability_score":       classification.get("viability_score", 0),
-        "urgency":               classification.get("urgency", "low"),
-        "sol_flag":              classification.get("sol_flag", False),
-        "key_facts":             classification.get("key_facts", []),
-        "recommended_action":    classification.get("recommended_action", ""),
-        "client_acknowledgment": classification.get("client_acknowledgment", ""),
-
-        # Police report
-        "has_police_report": has_police_report,
-        "pdf_s3_key":        pdf_s3_key,
-
-        # Status & timestamps
-        "status":     "new",
-        "created_at": now,
-        "updated_at": now,
+    item['extracted'] = {
+        'accident_date':                    item.get('accident_date'),
+        'accident_time':                    item.get('accident_time'),
+        'accident_location':                item.get('accident_location'),
+        'police_report_number':             item.get('police_report_number'),
+        'reporting_officer':                item.get('reporting_officer'),
+        'client_vehicle_make_model':        item.get('client_vehicle') or item.get('client_vehicle_make_model'),
+        'client_vehicle_plate':             item.get('client_vehicle_plate'),
+        'client_injuries_noted':            item.get('client_injuries_noted'),
+        'opposing_party_name':              item.get('opposing_party_name'),
+        'opposing_party_vehicle':           item.get('opposing_party_vehicle'),
+        'opposing_party_plate':             item.get('opposing_party_plate'),
+        'opposing_party_insurance_company': item.get('opposing_party_insurance') or item.get('opposing_party_insurance_company'),
+        'fault_determination':              item.get('fault_determination'),
+        'witnesses':                        item.get('witnesses'),
+        'charges_filed':                    item.get('charges_filed'),
+        'narrative':                        item.get('narrative_summary') or item.get('narrative'),
+        'sol_date':                         item.get('sol_date'),
     }
 
-    # Flatten police report fields into the item if present
-    if has_police_report and police_report:
-        item["accident_date"]             = police_report.get("accident_date")
-        item["accident_time"]             = police_report.get("accident_time")
-        item["accident_location"]         = police_report.get("accident_location")
-        item["police_report_number"]      = police_report.get("police_report_number")
-        item["reporting_officer"]         = police_report.get("reporting_officer")
-        item["client_vehicle"]            = police_report.get("client_vehicle")
-        item["client_vehicle_plate"]      = police_report.get("client_vehicle_plate")
-        item["client_injuries_noted"]     = police_report.get("client_injuries_noted")
-        item["opposing_party_name"]       = police_report.get("opposing_party_name")
-        item["opposing_party_vehicle"]    = police_report.get("opposing_party_vehicle")
-        item["opposing_party_plate"]      = police_report.get("opposing_party_plate")
-        item["opposing_party_insurance"]  = police_report.get("opposing_party_insurance")
-        item["fault_determination"]       = police_report.get("fault_determination")
-        item["witnesses"]                 = police_report.get("witnesses", [])
-        item["charges_filed"]             = police_report.get("charges_filed")
-        item["narrative_summary"]         = police_report.get("narrative_summary")
+    # Also ensure submitted_at exists for the dashboard
+    if not item.get('submitted_at') and item.get('created_at'):
+        item['submitted_at'] = item['created_at']
 
-    # Remove None values — DynamoDB doesn't accept nulls
-    item = {k: v for k, v in item.items() if v is not None}
-
-    try:
-        table.put_item(Item=item)
-        logger.info(f"Saved intake {intake_id} for {client_name}")
-        return intake_id, portal_token
-    except ClientError as e:
-        logger.error(f"DynamoDB save failed: {e}")
-        raise
+    return item
 
 
-# ── Get intake by ID ───────────────────────────────────────────────────────
+def ok(body):
+    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(body, default=str)}
 
-def get_intake(intake_id: str) -> dict | None:
-    """Fetch a single intake record by intake_id."""
-    try:
-        response = table.get_item(Key={"intake_id": intake_id})
-        return response.get("Item")
-    except ClientError as e:
-        logger.error(f"DynamoDB get failed: {e}")
-        return None
-
-
-# ── Get intake by portal token ─────────────────────────────────────────────
-
-def get_intake_by_token(portal_token: str) -> dict | None:
-    """Fetch intake record using the client's magic link token."""
-    try:
-        response = table.query(
-            IndexName="portal_token-index",
-            KeyConditionExpression=Key("portal_token").eq(portal_token),
-        )
-        items = response.get("Items", [])
-        return items[0] if items else None
-    except ClientError as e:
-        logger.error(f"DynamoDB token query failed: {e}")
-        return None
-
-
-# ── Update intake status ───────────────────────────────────────────────────
-
-def update_status(intake_id: str, status: str, notes: str = None) -> bool:
-    """
-    Update the status of an intake.
-    Valid statuses: pending, active, declined, closed
-    """
-    now = datetime.now(timezone.utc).isoformat()
-
-    update_expr  = "SET #s = :status, updated_at = :updated_at"
-    expr_names   = {"#s": "status"}
-    expr_values  = {":status": status, ":updated_at": now}
-
-    if notes:
-        update_expr += ", attorney_notes = :notes"
-        expr_values[":notes"] = notes
-
-    try:
-        table.update_item(
-            Key={"intake_id": intake_id},
-            UpdateExpression=update_expr,
-            ExpressionAttributeNames=expr_names,
-            ExpressionAttributeValues=expr_values,
-        )
-        logger.info(f"Updated intake {intake_id} → {status}")
-        return True
-    except ClientError as e:
-        logger.error(f"DynamoDB update failed: {e}")
-        return False
-
-
-# ── Mark Clio sync complete ────────────────────────────────────────────────
-
-def mark_clio_synced(intake_id: str, clio_matter_id: str, clio_contact_id: str) -> bool:
-    """Record that this intake has been synced to Clio."""
-    now = datetime.now(timezone.utc).isoformat()
-
-    try:
-        table.update_item(
-            Key={"intake_id": intake_id},
-            UpdateExpression=(
-                "SET clio_synced = :synced, "
-                "clio_matter_id = :matter, "
-                "clio_contact_id = :contact, "
-                "clio_synced_at = :now, "
-                "updated_at = :now"
-            ),
-            ExpressionAttributeValues={
-                ":synced":  True,
-                ":matter":  clio_matter_id,
-                ":contact": clio_contact_id,
-                ":now":     now,
-            },
-        )
-        logger.info(f"Clio sync recorded for intake {intake_id}")
-        return True
-    except ClientError as e:
-        logger.error(f"DynamoDB clio sync update failed: {e}")
-        return False
-
-
-# ── Get recent intakes for dashboard ──────────────────────────────────────
-
-def get_recent_intakes(limit: int = 50) -> list:
-    """Scan for recent intakes — used by the dashboard."""
-    try:
-        response = table.scan(Limit=limit)
-        items = response.get("Items", [])
-        # Sort by created_at descending
-        items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-        return items
-    except ClientError as e:
-        logger.error(f"DynamoDB scan failed: {e}")
-        return []
+def err(code, msg):
+    return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg})}

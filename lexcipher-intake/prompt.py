@@ -1,101 +1,110 @@
-VALID_CASE_TYPES = [
-    "Personal Injury - Vehicle Accident",
-    "Personal Injury - Slip and Fall",
-    "Personal Injury - Medical Malpractice",
-    "Personal Injury - Workplace Injury",
-    "Employment Law",
-    "Out of Scope",
-]
+import json
+import os
+import boto3
+from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
-# ── Case Classification Prompt ─────────────────────────────────────────────
-CLASSIFICATION_SYSTEM_PROMPT = """You are an intake specialist AI for Richards & Law, a personal injury law firm in New York.
+dynamodb  = boto3.resource('dynamodb')
+TABLE     = os.environ.get('DYNAMODB_TABLE', 'lexcipher-intakes')
 
-Your job is to analyze a potential client's description and classify their case.
+CORS = {
+    'Access-Control-Allow-Origin':  '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET,PATCH,OPTIONS',
+}
 
-VALID CASE TYPES (choose exactly one):
-- Personal Injury - Vehicle Accident
-- Personal Injury - Slip and Fall
-- Personal Injury - Medical Malpractice
-- Personal Injury - Workplace Injury
-- Employment Law
-- Out of Scope
+def lambda_handler(event, context):
+    method = event.get('httpMethod', '')
+    path   = event.get('path', '')
 
-VIABILITY SCORE (0-10):
-- 8-10: Strong case, clear liability, significant injuries
-- 5-7:  Moderate case, some liability questions
-- 2-4:  Weak case, liability unclear or minor injuries
-- 0-1:  Not viable or out of scope
+    if method == 'OPTIONS':
+        return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
-URGENCY:
-- critical: Statute of limitations within 30 days OR severe ongoing harm
-- high:     SOL within 90 days OR significant injuries
-- medium:   SOL within 1 year OR moderate injuries
-- low:      SOL > 1 year AND minor injuries
+    try:
+        table = dynamodb.Table(TABLE)
 
-NEW YORK STATUTE OF LIMITATIONS:
-- Vehicle Accident:      3 years from incident
-- Slip and Fall:         3 years from incident
-- Medical Malpractice:   2.5 years from incident (or discovery)
-- Workplace Injury:      3 years (or 2 years for workers comp)
-- Employment Law:        3 years for most claims
-- Against government:    90 days to file notice of claim
+        # GET /intakes — list all
+        if method == 'GET' and path.endswith('/intakes'):
+            result = table.scan(Limit=50)
+            items  = result.get('Items', [])
+            items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            items  = [_reshape(i) for i in items]
+            return ok({'intakes': items})
 
-You MUST respond with valid JSON only. No explanation, no markdown, no extra text.
+        # GET /intakes/{id} — single intake
+        if method == 'GET' and '/intakes/' in path:
+            intake_id = path.split('/intakes/')[-1]
+            result = table.get_item(Key={'intake_id': intake_id})
+            item   = result.get('Item')
+            if not item:
+                return err(404, 'Intake not found')
+            return ok(_reshape(item))
 
-RESPONSE FORMAT:
-{
-  "case_type": "<one of the valid case types above>",
-  "viability_score": <0-10>,
-  "urgency": "<critical|high|medium|low>",
-  "sol_flag": <true if SOL within 90 days, else false>,
-  "key_facts": ["<fact 1>", "<fact 2>", "<fact 3>"],
-  "recommended_action": "<what the attorney should do>",
-  "client_acknowledgment": "<warm, professional 2-sentence message to send the client confirming receipt and next steps>"
-}"""
+        # PATCH /intakes/{id}/status — update status
+        if method == 'PATCH' and '/status' in path:
+            intake_id = path.split('/intakes/')[-1].replace('/status', '')
+            body      = json.loads(event.get('body') or '{}')
+            status    = body.get('status')
+            if not status:
+                return err(400, 'Missing status field')
+            table.update_item(
+                Key={'intake_id': intake_id},
+                UpdateExpression='SET #s = :s',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':s': status},
+            )
+            return ok({'intake_id': intake_id, 'status': status})
 
+        return err(404, 'Not found')
 
-def build_classification_prompt(client_name: str, description: str, incident_date: str, prior_attorney: bool) -> str:
-    return f"""Please classify this potential client inquiry for Richards & Law.
-
-CLIENT NAME: {client_name}
-INCIDENT DATE: {incident_date}
-PRIOR ATTORNEY: {"Yes" if prior_attorney else "No"}
-
-CLIENT DESCRIPTION:
-{description}
-
-Analyze the above and respond with JSON only."""
+    except ClientError as e:
+        return err(500, str(e))
+    except Exception as e:
+        return err(500, str(e))
 
 
-# ── Police Report Extraction Prompt ───────────────────────────────────────
-EXTRACTION_SYSTEM_PROMPT = """You are a legal document analyst for Richards & Law, a personal injury law firm.
+def _reshape(item):
+    """
+    Restructure flat DynamoDB fields into the nested 'extracted' object
+    that the dashboard JS expects (c.extracted.accident_date, etc.).
+    Also maps field name differences between db.py and dashboard.
+    """
+    if item.get('extracted'):
+        return item  # already has nested extracted (e.g. from demo data)
 
-Your job is to extract key information from a police report PDF.
+    if not item.get('has_police_report'):
+        item['extracted'] = None
+        return item
 
-Extract the following fields. If a field is not found in the document, use null.
+    item['extracted'] = {
+        'accident_date':                    item.get('accident_date'),
+        'accident_time':                    item.get('accident_time'),
+        'accident_location':                item.get('accident_location'),
+        'police_report_number':             item.get('police_report_number'),
+        'reporting_officer':                item.get('reporting_officer'),
+        'client_vehicle_make_model':        item.get('client_vehicle') or item.get('client_vehicle_make_model'),
+        'client_vehicle_plate':             item.get('client_vehicle_plate'),
+        'client_injuries_noted':            item.get('client_injuries_noted'),
+        'opposing_party_name':              item.get('opposing_party_name'),
+        'opposing_party_vehicle':           item.get('opposing_party_vehicle'),
+        'opposing_party_plate':             item.get('opposing_party_plate'),
+        'opposing_party_insurance_company': item.get('opposing_party_insurance') or item.get('opposing_party_insurance_company'),
+        'fault_determination':              item.get('fault_determination'),
+        'witnesses':                        item.get('witnesses'),
+        'charges_filed':                    item.get('charges_filed'),
+        'narrative':                        item.get('narrative_summary') or item.get('narrative'),
+        'sol_date':                         item.get('sol_date'),
+    }
 
-You MUST respond with valid JSON only. No explanation, no markdown, no extra text.
+    # Also ensure submitted_at exists for the dashboard
+    if not item.get('submitted_at') and item.get('created_at'):
+        item['submitted_at'] = item['created_at']
 
-RESPONSE FORMAT:
-{
-  "accident_date": "<YYYY-MM-DD or null>",
-  "accident_time": "<HH:MM or null>",
-  "accident_location": "<full address or intersection or null>",
-  "police_report_number": "<report number or null>",
-  "reporting_officer": "<officer name and badge or null>",
-  "client_vehicle": "<year make model or null>",
-  "client_vehicle_plate": "<plate number or null>",
-  "client_injuries_noted": "<injuries listed in report or null>",
-  "opposing_party_name": "<full name or null>",
-  "opposing_party_vehicle": "<year make model or null>",
-  "opposing_party_plate": "<plate number or null>",
-  "opposing_party_insurance": "<insurance company and policy number or null>",
-  "fault_determination": "<who was found at fault or null>",
-  "witnesses": ["<witness name and contact or null>"],
-  "charges_filed": "<any charges filed or null>",
-  "narrative_summary": "<1-2 sentence summary of what the report says happened>"
-}"""
+    return item
 
 
-def build_extraction_prompt() -> str:
-    return "Please extract all key information from this police report and respond with JSON only."
+def ok(body):
+    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(body, default=str)}
+
+def err(code, msg):
+    return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg})}
