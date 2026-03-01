@@ -159,6 +159,8 @@ def _reshape(item):
         'client_vehicle_make_model':        item.get('client_vehicle') or item.get('client_vehicle_make_model'),
         'client_vehicle_plate':             item.get('client_vehicle_plate'),
         'client_gender':                    item.get('client_gender'),
+        'client_dob':                       item.get('client_dob'),
+        'client_age':                       item.get('client_age'),
         'client_pronoun':                   item.get('client_pronoun'),
         'client_injuries_noted':            item.get('client_injuries_noted'),
         'opposing_party_name':              item.get('opposing_party_name'),

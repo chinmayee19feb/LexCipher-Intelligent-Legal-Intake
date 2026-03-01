@@ -516,6 +516,7 @@ function openCase(id) {
           <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||ext.client_vehicle||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client Plate</div><div class="cl-ext-val">${ext.client_vehicle_plate||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client Gender</div><div class="cl-ext-val">${ext.client_gender||'\u2014'} ${ext.client_pronoun?'('+ext.client_pronoun+')':''}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client DOB / Age</div><div class="cl-ext-val">${ext.client_dob||'\u2014'}${ext.client_age?' ('+ext.client_age+')':''}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Reporting Officer</div><div class="cl-ext-val">${ext.reporting_officer||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Party</div><div class="cl-ext-val">${ext.opposing_party_name||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Vehicle</div><div class="cl-ext-val">${ext.opposing_party_vehicle||'\u2014'}</div></div>
@@ -795,6 +796,8 @@ function openModal() {
     <div class="v-section"><div class="v-section-title">Client Details</div><div class="v-grid">
       <div class="v-field"><label>Client Vehicle</label><input id="vf_client_vehicle_make_model" value="${ext.client_vehicle_make_model||ext.client_vehicle||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Client Plate</label><input id="vf_client_vehicle_plate" value="${ext.client_vehicle_plate||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Client DOB</label><input id="vf_client_dob" value="${ext.client_dob||''}" onchange="markChanged(this)" placeholder="YYYY-MM-DD"></div>
+      <div class="v-field"><label>Client Age</label><input id="vf_client_age" value="${ext.client_age||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Client Gender</label><input id="vf_client_gender" value="${ext.client_gender||''}" onchange="markChanged(this)" placeholder="M or F"></div>
       <div class="v-field"><label>Client Pronoun</label><input id="vf_client_pronoun" value="${ext.client_pronoun||''}" onchange="markChanged(this)" placeholder="his or her"></div>
     </div></div>
@@ -828,6 +831,8 @@ async function verifyAndForward() {
     number_injured:document.getElementById('vf_number_injured')?.value,
     client_vehicle_make_model:document.getElementById('vf_client_vehicle_make_model')?.value,
     client_vehicle_plate:document.getElementById('vf_client_vehicle_plate')?.value,
+    client_dob:document.getElementById('vf_client_dob')?.value,
+    client_age:document.getElementById('vf_client_age')?.value,
     client_gender:document.getElementById('vf_client_gender')?.value,
     client_pronoun:document.getElementById('vf_client_pronoun')?.value,
     opposing_party_name:document.getElementById('vf_opposing_party_name')?.value,

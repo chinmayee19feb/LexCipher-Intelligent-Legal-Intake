@@ -100,6 +100,8 @@ RESPONSE FORMAT:
   "reporting_officer": "<officer name and badge/tax ID from bottom of report>",
   "client_vehicle": "<Vehicle 1: year, make, vehicle type>",
   "client_vehicle_plate": "<Vehicle 1 plate number from Section 5>",
+  "client_dob": "<YYYY-MM-DD — Vehicle 1 driver Date of Birth from Section 3>",
+  "client_age": "<age at time of accident — calculate from DOB and accident date>",
   "client_gender": "<M or F from Vehicle 1 driver Section 3>",
   "client_pronoun": "<his if male, her if female — based on Vehicle 1 driver gender>",
   "client_injuries_noted": "<injuries from the injured persons table or officer notes, or null>",
