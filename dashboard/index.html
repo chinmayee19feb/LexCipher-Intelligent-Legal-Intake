@@ -259,7 +259,10 @@ body{font-family:'DM Sans',sans-serif;min-height:100vh}
       <button class="view-btn" id="btn-advanced" onclick="switchView('advanced')">⬛ Advanced</button>
     </div>
     <div class="live-dot"></div>
-    <span class="hdr-user">Sarah Chen — Paralegal</span>
+    <select id="role-switch" onchange="switchRole(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #c9a84c;border-radius:4px;background:#fff;color:#333;font-family:Georgia,serif;cursor:pointer">
+      <option value="paralegal">Sarah Chen \u2014 Paralegal</option>
+      <option value="attorney">Andrew Richards \u2014 Attorney</option>
+    </select>
   </div>
 </header>
 
@@ -280,6 +283,7 @@ body{font-family:'DM Sans',sans-serif;min-height:100vh}
     <div class="cl-filters">
       <div class="cl-filter active" onclick="clFilter('all',this)">All</div>
       <div class="cl-filter" onclick="clFilter('new',this)">New</div>
+      <div class="cl-filter" onclick="clFilter('verified',this)">Verified</div>
       <div class="cl-filter" onclick="clFilter('active',this)">Active</div>
       <div class="cl-filter" onclick="clFilter('declined',this)">Declined</div>
     </div>
@@ -345,7 +349,7 @@ body{font-family:'DM Sans',sans-serif;min-height:100vh}
       <span class="modal-note">✏️ Gold highlight = edited field</span>
       <div style="display:flex;gap:8px">
         <button class="m-btn m-btn-ghost" onclick="closeModal()">Cancel</button>
-        <button class="m-btn m-btn-primary" id="approve-btn" onclick="approveToClio()">✓ Approve &amp; Sync to Clio</button>
+        <button class="m-btn m-btn-primary" id="approve-btn" onclick="verifyAndForward()">✓ Verify &amp; Forward to Attorney</button>
       </div>
     </div>
   </div>
@@ -364,6 +368,14 @@ const DEMO = [
   {intake_id:'INT-002',client_name:'Maria Santana',client_email:'m.santana@email.com',client_phone:'+1 (212) 555-0287',submitted_at:new Date(Date.now()-5*3600000).toISOString(),status:'new',case_type:'PI \u2014 Slip and Fall',urgency:'high',viability_score:6,sol_flag:false,has_police_report:false,clio_synced:false,description:'Slipped on ice outside grocery store entrance. Fractured wrist. No warning signs posted.',key_facts:['Premises liability \u2014 store duty of care','No warning signs = clear negligence','Fractured wrist \u2014 documented at ER','Surveillance footage may exist'],recommended_action:'Accept. Request medical records and subpoena store surveillance.',extracted:null},
   {intake_id:'INT-003',client_name:'James Thornton',client_email:'jthornton@business.net',client_phone:'+1 (718) 555-0391',submitted_at:new Date(Date.now()-26*3600000).toISOString(),status:'declined',case_type:'Out of Scope',urgency:'low',viability_score:1,sol_flag:false,has_police_report:false,clio_synced:false,description:'Business partner dispute over profit sharing. No written partnership agreement.',key_facts:['Business dispute \u2014 not personal injury','No written contract','Out of practice scope'],recommended_action:'Decline. Refer to business litigation specialist.',extracted:null}
 ];
+
+// -- Role management -----------------------------------------------------------
+let currentRole = 'paralegal';
+function switchRole(role) {
+  currentRole = role;
+  renderAll();
+  if (selectedId) openCase(selectedId);
+}
 
 // -- Data ----------------------------------------------------------------------
 async function loadData() {
@@ -510,16 +522,24 @@ function openCase(id) {
           ${clStep('\u2713','Intake Received','Form submitted by client','done')}
           ${clStep('\u2713','AI Classification','Case type and viability assessed','done')}
           ${clStep(ext.accident_date?'\u2713':'\u25CB',ext.accident_date?'PDF Extracted':'PDF Extraction',ext.accident_date?'Police report parsed by Claude AI':'Awaiting police report upload',ext.accident_date?'done':'pending')}
-          ${clStep(c.status==='new'?'\u2192':'\u2713','Paralegal Review',c.status==='new'?'Awaiting your decision':'Reviewed',c.status==='new'?'active-step':'done')}
+          ${clStep(c.status==='new'?'\u2192':(c.status==='verified'||c.status==='active'||c.status==='declined')?'\u2713':'\u25CB','Paralegal Review',c.status==='new'?'Awaiting paralegal verification':(c.status==='verified'||c.status==='active'||c.status==='declined')?'Data verified by paralegal':'Pending',c.status==='new'?'active-step':(c.status==='verified'||c.status==='active'||c.status==='declined')?'done':'pending')}
+          ${clStep(c.status==='verified'?'\u2192':(c.status==='active'||c.status==='declined')?'\u2713':'\u25CB','Attorney Decision',c.status==='verified'?'Awaiting attorney review':c.status==='active'?'Case accepted':c.status==='declined'?'Case declined':'Pending verification',c.status==='verified'?'active-step':(c.status==='active'||c.status==='declined')?'done':'pending')}
           ${clStep(c.clio_synced?'\u2713':'\u25CB','Clio Sync',c.clio_synced?'Matter updated, SOL calendar set':'Pending approval',c.clio_synced?'done':'pending')}
           ${clStep(c.clio_synced?'\u2713':'\u25CB','Retainer Email',c.clio_synced?'Sent to client':'Pending Clio sync',c.clio_synced?'done':'pending')}
         </div>
       </div>
 
-      ${c.status==='new'?`<div class="cl-actions">
-        <button class="cl-btn cl-btn-primary" onclick="openModal()">\u2713 Accept &amp; Sync to Clio</button>
+      ${c.status==='new'&&currentRole==='paralegal'?`<div class="cl-actions">
+        <button class="cl-btn cl-btn-primary" onclick="openModal()">\u2713 Verify &amp; Forward to Attorney</button>
         <button class="cl-btn cl-btn-decline" onclick="declineCase()">\u2715 Decline Case</button>
-      </div>`:c.clio_synced?`<div style="padding:12px 14px;background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:6px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">\u2705 Synced to Clio \u00B7 SOL calendar created \u00B7 Retainer email sent to ${c.client_email}</div>`:''}
+      </div>`:''}
+      ${c.status==='new'&&currentRole==='attorney'?`<div style="padding:12px 14px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:6px;font-size:13px;color:#8b7028;display:flex;align-items:center;gap:8px">\u23F3 Awaiting paralegal verification</div>`:''}
+      ${c.status==='verified'&&currentRole==='attorney'?`<div class="cl-actions">
+        <button class="cl-btn cl-btn-primary" onclick="acceptCase()">\u2713 Accept &amp; Sync to Clio</button>
+        <button class="cl-btn cl-btn-decline" onclick="declineCase()">\u2715 Decline Case</button>
+      </div>`:''}
+      ${c.status==='verified'&&currentRole==='paralegal'?`<div style="padding:12px 14px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:6px;font-size:13px;color:#8b7028;display:flex;align-items:center;gap:8px">\u2705 Verified \u2014 awaiting attorney decision</div>`:''}
+      ${c.clio_synced?`<div style="padding:12px 14px;background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:6px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">\u2705 Synced to Clio \u00B7 SOL calendar created \u00B7 Retainer email sent to ${c.client_email}</div>`:''}
     </div>`;
 }
 
@@ -667,8 +687,11 @@ function advOpenCase(id) {
       <p style="font-size:13px;line-height:1.7;color:var(--dk-muted)">${c.recommended_action}</p>
     </div>
 
-    ${c.status==='new'?`<div style="display:flex;gap:8px">
-      <button class="m-btn m-btn-primary" onclick="openModal()" style="background:var(--gold);color:#1a1a1a">\u2713 Accept &amp; Sync to Clio</button>
+    ${c.status==='new'&&currentRole==='paralegal'?`<div style="display:flex;gap:8px">
+      <button class="m-btn m-btn-primary" onclick="openModal()" style="background:var(--gold);color:#1a1a1a">\u2713 Verify &amp; Forward to Attorney</button>
+      <button class="m-btn m-btn-ghost" onclick="advDecline('${c.intake_id}')" style="background:rgba(248,81,73,.1);color:var(--dk-red);border:1px solid rgba(248,81,73,.3)">\u2715 Decline</button>
+    </div>`:c.status==='verified'&&currentRole==='attorney'?`<div style="display:flex;gap:8px">
+      <button class="m-btn m-btn-primary" onclick="acceptCase()" style="background:var(--gold);color:#1a1a1a">\u2713 Accept &amp; Sync to Clio</button>
       <button class="m-btn m-btn-ghost" onclick="advDecline('${c.intake_id}')" style="background:rgba(248,81,73,.1);color:var(--dk-red);border:1px solid rgba(248,81,73,.3)">\u2715 Decline</button>
     </div>`:c.clio_synced?`<div style="padding:12px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:6px;font-size:13px;color:var(--dk-green)">\u2705 Synced to Clio \u00B7 SOL calendar created \u00B7 Retainer email sent</div>`:''}
   `;
@@ -772,9 +795,9 @@ function openModal() {
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 function markChanged(el) { el.classList.add('field-changed'); }
 
-async function approveToClio() {
+async function verifyAndForward() {
   const btn=document.getElementById('approve-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner-inline"></span> Syncing\u2026';
+  btn.disabled=true; btn.innerHTML='<span class="spinner-inline"></span> Verifying\u2026';
   const c=ALL.find(i=>i.intake_id===selectedId);
   const verified={
     accident_date:document.getElementById('vf_accident_date')?.value,
@@ -789,12 +812,23 @@ async function approveToClio() {
     narrative:document.getElementById('vf_narrative')?.value,
   };
   try {
-    await fetch(CLIO_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intake_id:selectedId,verified_data:verified,client_name:c?.client_name,client_email:c?.client_email})});
-  } catch(e){ console.warn('Demo mode',e); }
-  if(c){ c.status='active'; c.clio_synced=true; c.extracted={...c.extracted,...verified}; }
+    await fetch(API+'/'+selectedId+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'verified',verified_data:verified})});
+  } catch(e){ console.warn('Status update',e); }
+  if(c){ c.status='verified'; c.extracted={...c.extracted,...verified}; }
   closeModal(); renderAll(); openCase(selectedId);
-  showToast('\u2705 Synced to Clio! SOL calendar created. Retainer email sent.','success');
-  btn.disabled=false; btn.innerHTML='\u2713 Approve & Sync to Clio';
+  showToast('\u2705 Data verified! Forwarded to attorney for decision.','success');
+  btn.disabled=false; btn.innerHTML='\u2713 Verify & Forward to Attorney';
+}
+
+async function acceptCase() {
+  const c=ALL.find(i=>i.intake_id===selectedId);
+  const verified=c?.extracted||{};
+  try {
+    await fetch(CLIO_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intake_id:selectedId,verified_data:verified,client_name:c?.client_name,client_email:c?.client_email,incident_date:c?.incident_date})});
+  } catch(e){ console.warn('Demo mode',e); }
+  if(c){ c.status='active'; c.clio_synced=true; }
+  renderAll(); openCase(selectedId);
+  showToast('\u2705 Case accepted! Synced to Clio. SOL calendar created. Retainer email sent.','success');
 }
 
 function declineCase() {
