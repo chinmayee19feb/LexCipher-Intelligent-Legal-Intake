@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import logging
 import boto3
@@ -6,6 +7,16 @@ import requests
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from botocore.exceptions import ClientError
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 
 from extractor import extract_for_clio_from_s3
 
@@ -42,6 +53,10 @@ BOOKING_LINKS = {
     "in_office": "https://calendly.com/swans-santiago-p/summer-spring",
     "virtual":   "https://calendly.com/swans-santiago-p/winter-autumn",
 }
+
+# Clio Document IDs
+DOCUMENT_TEMPLATE_ID = 9157148
+MATTER_FOLDER_ID     = 18605766188
 
 CORS = {
     "Access-Control-Allow-Origin":  "*",
@@ -126,7 +141,32 @@ def handler(event, context):
             logger.warning(f"Clio API sync failed (non-fatal): {clio_err}")
             sol_date = verified_data.get("sol_date") or _calculate_sol(incident_date)
 
-        # ── 2. Send personalized client email (always runs) ───────────────────
+        # ── 2. Generate Retainer Agreement PDF ─────────────────────────────────
+        retainer_pdf = None
+        try:
+            retainer_pdf = _generate_retainer_pdf(
+                client_name   = client_name,
+                verified_data = verified_data,
+                sol_date      = sol_date,
+            )
+            logger.info("Retainer PDF generated")
+        except Exception as pdf_err:
+            logger.error(f"Retainer PDF generation failed: {pdf_err}")
+
+        # ── 3. Upload retainer to Clio Matter Documents ──────────────────────
+        clio_doc_id = None
+        if retainer_pdf and clio_success:
+            try:
+                clio_doc_id = _upload_document_to_clio(
+                    headers  = headers,
+                    pdf_bytes = retainer_pdf,
+                    filename  = f"Retainer_Agreement_{client_name.replace(' ', '_')}",
+                )
+                logger.info(f"Retainer uploaded to Clio: doc_id={clio_doc_id}")
+            except Exception as upload_err:
+                logger.error(f"Clio document upload failed: {upload_err}")
+
+        # ── 4. Send personalized client email with retainer attached ─────────
         try:
             booking_link = _get_seasonal_booking_link()
             _send_retainer_email(
@@ -135,12 +175,13 @@ def handler(event, context):
                 verified_data  = verified_data,
                 booking_link   = booking_link,
                 sol_date       = sol_date,
+                retainer_pdf   = retainer_pdf,
             )
             logger.info(f"Retainer email sent to {client_email}")
         except Exception as email_err:
             logger.error(f"Retainer email failed: {email_err}")
 
-        # ── 3. Mark intake as synced in DynamoDB (always runs) ────────────────
+        # ── 5. Mark intake as synced in DynamoDB (always runs) ────────────────
         _mark_synced(intake_id, calendar_id)
 
         return {
@@ -325,6 +366,232 @@ def _create_sol_calendar_event(headers: dict, sol_date: str, client_name: str) -
         return None
 
 
+# ── Retainer PDF Generation ───────────────────────────────────────────────
+
+def _generate_retainer_pdf(client_name: str, verified_data: dict, sol_date: str | None) -> bytes:
+    """Generate a professional retainer agreement PDF with all case data filled in."""
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter,
+                            topMargin=0.8*inch, bottomMargin=0.8*inch,
+                            leftMargin=1*inch, rightMargin=1*inch)
+
+    navy = HexColor("#1B3A6B")
+    gold = HexColor("#C9A84C")
+    dark = HexColor("#222222")
+
+    styles = getSampleStyleSheet()
+    s_title = ParagraphStyle("FirmTitle", parent=styles["Normal"],
+        fontName="Helvetica-Bold", fontSize=20, textColor=navy,
+        alignment=TA_CENTER, spaceAfter=4)
+    s_subtitle = ParagraphStyle("DocTitle", parent=styles["Normal"],
+        fontName="Helvetica-Bold", fontSize=13, textColor=dark,
+        alignment=TA_CENTER, spaceBefore=12, spaceAfter=16)
+    s_heading = ParagraphStyle("SectionHead", parent=styles["Normal"],
+        fontName="Helvetica-Bold", fontSize=11, textColor=navy,
+        spaceBefore=16, spaceAfter=8, underline=True, alignment=TA_CENTER)
+    s_body = ParagraphStyle("Body", parent=styles["Normal"],
+        fontName="Helvetica", fontSize=10, textColor=dark,
+        leading=15, alignment=TA_JUSTIFY, spaceAfter=8)
+    s_bold_body = ParagraphStyle("BoldBody", parent=s_body,
+        fontName="Helvetica-Bold")
+    s_sig = ParagraphStyle("Sig", parent=styles["Normal"],
+        fontName="Helvetica", fontSize=10, textColor=dark,
+        spaceBefore=4, spaceAfter=4, alignment=TA_LEFT)
+
+    # Extract data
+    accident_date    = verified_data.get("accident_date", "___________")
+    accident_loc     = verified_data.get("accident_location", "___________")
+    accident_desc    = verified_data.get("narrative", "")
+    client_vehicle   = verified_data.get("client_vehicle_make_model", "___________")
+    opposing_name    = verified_data.get("opposing_party_name", "___________")
+    opposing_vehicle = verified_data.get("opposing_party_vehicle", "___________")
+    report_no        = verified_data.get("police_report_number", "___________")
+    plate            = verified_data.get("client_vehicle_plate", "___________")
+    pronoun          = verified_data.get("client_pronoun", "his/her")
+    num_injured      = verified_data.get("number_injured", "0")
+    sol_display      = sol_date or "To be determined"
+
+    try:
+        injured_count = int(num_injured)
+    except (ValueError, TypeError):
+        injured_count = 0
+
+    story = []
+
+    # Header
+    story.append(Paragraph("RICHARDS &amp; LAW", s_title))
+    story.append(HRFlowable(width="100%", thickness=2, color=gold, spaceAfter=8))
+    story.append(Paragraph("CONTRACT FOR EMPLOYMENT OF ATTORNEYS", s_subtitle))
+
+    # Intro
+    story.append(Paragraph(
+        f'This Retainer Agreement (&ldquo;Agreement&rdquo;) is entered into between '
+        f'<b>{client_name}</b> (&ldquo;Client&rdquo;) and <b>Richards &amp; Law</b> '
+        f'(&ldquo;Attorney&rdquo;), for the purpose of providing legal representation '
+        f'related to the damages sustained in an incident that occurred on '
+        f'<b>{accident_date}</b>. By executing this Agreement, Client employs Attorney '
+        f'to investigate, pursue, negotiate, and, if necessary, litigate claims for '
+        f'damages against <b>{opposing_name}</b> who may be responsible for such damages '
+        f'suffered by Client as a result of {pronoun} accident.', s_body))
+
+    story.append(Paragraph(
+        f'Representation under this Agreement is expressly limited to the matter '
+        f'described herein (&ldquo;the Claim&rdquo;) and does not extend to any other '
+        f'legal issues unless separately agreed to in writing by both Client and Attorney. '
+        f'Attorney does not provide tax, accounting, or financial advisory services, and '
+        f'any such issues are outside the scope of this representation. Client is encouraged '
+        f'to consult separate professionals for such matters, as those responsibilities '
+        f'remain {pronoun} own.', s_body))
+
+    # Scope
+    story.append(Paragraph("Scope of Representation", s_heading))
+    story.append(Paragraph(
+        f'Attorney shall undertake all reasonable and necessary legal efforts to diligently '
+        f'protect and advance Client&rsquo;s interests in the Claim, extending to both '
+        f'settlement negotiations and litigation proceedings where appropriate. Client agrees '
+        f'to cooperate fully by providing truthful information, timely responses, and all '
+        f'relevant documents or records as requested. Client acknowledges that {pronoun} '
+        f'cooperation is essential to the effective handling of the Claim.', s_body))
+
+    # Accident Details
+    story.append(Paragraph("Accident Details &amp; Insurance", s_heading))
+    story.append(Paragraph(
+        f'The incident giving rise to this Claim occurred at <b>{accident_loc}</b>. '
+        f'At the time of the accident, Client was operating or occupying a vehicle bearing '
+        f'registration plate number <b>{plate}</b>. The circumstances surrounding the '
+        f'incident, including the actions of the involved parties and any contributing factors, '
+        f'will be further investigated by Attorney as part of the representation under this '
+        f'Agreement.', s_body))
+
+    story.append(Paragraph(
+        f'Attorney is authorized to investigate the liability aspects of the incident, '
+        f'including the collection of police reports, witness statements, and property damage '
+        f'appraisals to determine the full extent of recoverable damages. Client understands '
+        f'that preserving evidence and providing truthful disclosures regarding the events '
+        f'leading to the loss are material obligations under this Agreement. This investigation '
+        f'will serve as the basis for identifying all applicable insurance coverage and '
+        f'responsible parties.', s_body))
+
+    # Conditional paragraph: injured > 0 or = 0
+    if injured_count > 0:
+        story.append(Paragraph(
+            f'Additionally, since the motor vehicle accident involved an injured person, '
+            f'Attorney will also investigate potential bodily injury claims and review relevant '
+            f'medical records to substantiate non-economic damages.', s_body))
+    else:
+        story.append(Paragraph(
+            f'However, since the motor vehicle accident involved no reported injured people, '
+            f'the scope of this engagement is strictly limited to the recovery of property '
+            f'damage and loss of use.', s_body))
+
+    # Litigation Expenses
+    story.append(Paragraph("Litigation Expenses", s_heading))
+    story.append(Paragraph(
+        f'Attorney will advance all reasonable costs and expenses necessary for the proper '
+        f'handling of the Claim (&ldquo;Litigation Expenses&rdquo;). Such expenses may include, '
+        f'but are not limited to, court filing fees, deposition costs, expert witness fees, '
+        f'medical record retrieval, travel expenses, investigative services, and administrative '
+        f'charges associated with case management.', s_body))
+    story.append(Paragraph(
+        f'These Litigation Expenses will be reimbursed to Attorney from Client&rsquo;s share '
+        f'of the recovery in addition to the contingency fee. Client understands that these '
+        f'expenses are separate from medical bills, liens, or other financial obligations for '
+        f'which {pronoun} may remain personally responsible.', s_body))
+
+    # Liens
+    story.append(Paragraph("Liens, Subrogation, and Other Obligations", s_heading))
+    story.append(Paragraph(
+        f'Client understands that certain parties, such as healthcare providers, insurers, or '
+        f'government agencies (including Medicare or Medicaid), may have a legal right to '
+        f'reimbursement for payments made on Client&rsquo;s behalf. These are commonly referred '
+        f'to as liens or subrogation claims, and may affect the final amount received by Client '
+        f'from {pronoun} settlement or judgment.', s_body))
+    story.append(Paragraph(
+        f'Client hereby authorizes Attorney to negotiate, settle, and satisfy such claims from '
+        f'the proceeds of any recovery. Attorney may engage specialized lien resolution services '
+        f'or other professionals to assist in this process, and the cost of such services shall '
+        f'be treated as a Litigation Expense.', s_body))
+
+    # SOL
+    story.append(Paragraph("Statute of Limitations", s_heading))
+    story.append(Paragraph(
+        f'Attorney will monitor and calculate the deadline for filing the Claim in accordance '
+        f'with applicable law. Based on current information, the statute of limitations for this '
+        f'matter is <b><font color="#C62828">{sol_display}</font></b>. Client acknowledges the '
+        f'importance of timely cooperation in providing documents, records, and information '
+        f'necessary for Attorney to meet all legal deadlines.', s_body))
+
+    # Termination
+    story.append(Paragraph("Termination of Representation", s_heading))
+    story.append(Paragraph(
+        f'Either party may terminate this Agreement upon reasonable written notice. If Client '
+        f'terminates this Agreement after substantial work has been performed, Attorney may '
+        f'assert a claim for attorney&rsquo;s fees based on the reasonable value of services '
+        f'rendered, payable from any eventual recovery. Client agrees that {pronoun} obligation '
+        f'to compensate Attorney in such cases shall be limited to the reasonable value of the '
+        f'services rendered up to the point of termination.', s_body))
+
+    # Signature block
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("<b>ACCEPTED BY:</b>", s_sig))
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"CLIENT ___________________________     Date: _____________________", s_sig))
+    story.append(Paragraph(f"<b>{client_name}</b>", s_sig))
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"Richards &amp; Law Attorney _________________________     Date: _____________________", s_sig))
+    story.append(Paragraph(f"<b>Andrew Richards</b>", s_sig))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+def _upload_document_to_clio(headers: dict, pdf_bytes: bytes, filename: str) -> int | None:
+    """Upload generated retainer PDF to Clio Matter documents.
+    Uses multipart upload: first create the document, then upload the file."""
+    try:
+        # Step 1: Create document entry in Clio
+        create_payload = {
+            "data": {
+                "name": filename,
+                "parent": {"id": MATTER_FOLDER_ID, "type": "Folder"},
+                "matter": {"id": MATTER_ID},
+            }
+        }
+        r = requests.post(
+            f"{CLIO_BASE_URL}/documents",
+            headers=headers,
+            json=create_payload,
+        )
+        r.raise_for_status()
+        doc_id = r.json()["data"]["id"]
+
+        # Step 2: Upload the PDF file content
+        upload_headers = {
+            "Authorization": headers["Authorization"],
+        }
+        files = {
+            "file": (f"{filename}.pdf", pdf_bytes, "application/pdf"),
+        }
+        # Get the latest_document_version id for upload
+        version_id = r.json()["data"].get("latest_document_version", {}).get("id")
+        if version_id:
+            r2 = requests.put(
+                f"{CLIO_BASE_URL}/document_versions/{version_id}",
+                headers=upload_headers,
+                files=files,
+            )
+            if r2.status_code < 300:
+                logger.info(f"PDF uploaded to Clio document {doc_id}")
+            else:
+                logger.warning(f"PDF upload returned {r2.status_code}: {r2.text[:200]}")
+
+        return doc_id
+
+    except Exception as e:
+        logger.error(f"Clio document upload failed: {e}")
+        return None
+
+
 # ── Email ─────────────────────────────────────────────────────────────────────
 
 def _get_seasonal_booking_link() -> str:
@@ -354,8 +621,9 @@ def _send_retainer_email(
     verified_data: dict,
     booking_link:  str,
     sol_date:      str | None,
+    retainer_pdf:  bytes | None = None,
 ) -> None:
-    """Send warm personalized email to client confirming case acceptance."""
+    """Send warm personalized email to client with retainer PDF attached."""
 
     first_name     = client_name.split()[0] if client_name else "Guillermo"
     accident_date  = verified_data.get("accident_date", "")
@@ -432,8 +700,8 @@ def _send_retainer_email(
     </div>
 
     <p>
-      Your Retainer Agreement has been prepared and our team will send it
-      to you shortly for signature. This agreement formalizes our representation
+      Your Retainer Agreement has been prepared and is attached to this email
+      as a PDF for your review. This agreement formalizes our representation
       on a <strong>contingency fee basis</strong> — you pay nothing upfront and
       we only get paid when you win.
     </p>
@@ -473,20 +741,34 @@ def _send_retainer_email(
         f"Opposing Party: {opposing_party}\n"
         f"Police Report: {report_no}\n\n"
         f"IMPORTANT: Your Statute of Limitations expires {sol_display}.\n\n"
+        f"Your Retainer Agreement is attached to this email as a PDF.\n\n"
         f"Book your consultation: {booking_link}\n\n"
         f"Andrew Richards\nRichards & Law"
     )
 
-    ses.send_email(
-        Source      = FROM_EMAIL,
-        Destination = {"ToAddresses": [client_email]},
-        Message     = {
-            "Subject": {"Data": subject, "Charset": "UTF-8"},
-            "Body":    {
-                "Html": {"Data": html_body,  "Charset": "UTF-8"},
-                "Text": {"Data": text_body,  "Charset": "UTF-8"},
-            },
-        },
+    # Build MIME email with optional PDF attachment
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"]    = FROM_EMAIL
+    msg["To"]      = client_email
+
+    # Body (HTML + text alternative)
+    body_part = MIMEMultipart("alternative")
+    body_part.attach(MIMEText(text_body, "plain", "utf-8"))
+    body_part.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(body_part)
+
+    # Attach retainer PDF if available
+    if retainer_pdf:
+        att = MIMEApplication(retainer_pdf, _subtype="pdf")
+        safe_name = client_name.replace(" ", "_")
+        att.add_header("Content-Disposition", "attachment", filename=f"Retainer_Agreement_{safe_name}.pdf")
+        msg.attach(att)
+
+    ses.send_raw_email(
+        Source       = FROM_EMAIL,
+        Destinations = [client_email],
+        RawMessage   = {"Data": msg.as_string()},
     )
 
 
