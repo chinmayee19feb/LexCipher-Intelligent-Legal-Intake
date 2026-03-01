@@ -449,15 +449,17 @@ def _send_retainer_email(
 
 def _mark_synced(intake_id: str, calendar_id: int | None) -> None:
     """Mark the DynamoDB intake record as synced to Clio."""
-    update_expr = "SET clio_synced = :s, clio_matter_id = :m, clio_calendar_id = :c, updated_at = :u"
+    update_expr = "SET clio_synced = :s, clio_matter_id = :m, clio_calendar_id = :c, updated_at = :u, #st = :st"
     TABLE.update_item(
         Key       = {"intake_id": intake_id},
         UpdateExpression = update_expr,
+        ExpressionAttributeNames = {"#st": "status"},
         ExpressionAttributeValues = {
             ":s": True,
             ":m": str(MATTER_ID),
             ":c": str(calendar_id) if calendar_id else "N/A",
             ":u": datetime.utcnow().isoformat(),
+            ":st": "active",
         },
     )
 
