@@ -37,10 +37,10 @@ FROM_EMAIL       = os.environ.get("FROM_EMAIL", "ch.pradhan606@gmail.com")
 AUTOMATION_EMAIL = os.environ.get("ATTORNEY_EMAIL", "lexcipher.submission@gmail.com")
 
 # Seasonal booking links (per Andrew's request)
-# March-August = in-office, September-February = virtual
+# March-August = in-office (summer-spring), September-February = virtual (winter-autumn)
 BOOKING_LINKS = {
-    "in_office": "https://calendly.com/richardsandlaw/consultation-in-office",
-    "virtual":   "https://calendly.com/richardsandlaw/consultation-virtual",
+    "in_office": "https://calendly.com/swans-santiago-p/summer-spring",
+    "virtual":   "https://calendly.com/swans-santiago-p/winter-autumn",
 }
 
 CORS = {
