@@ -30,10 +30,8 @@ FIELD_IDS = {
 }
 
 # ── Email constants ───────────────────────────────────────────────────────────
-FROM_EMAIL       = "intake@richardsandlaw.com"
-# ⚠️  BEFORE FINAL SUBMISSION change to:
-# AUTOMATION_EMAIL = "talent.legal-engineer.hackathon.automation-email@swans.co"
-AUTOMATION_EMAIL = "chinmayee.ohmaws@gmail.com"
+FROM_EMAIL       = os.environ.get("FROM_EMAIL", "ch.pradhan606@gmail.com")
+AUTOMATION_EMAIL = os.environ.get("ATTORNEY_EMAIL", "lexcipher.submission@gmail.com")
 
 # Seasonal booking links (February = winter)
 BOOKING_LINKS = {

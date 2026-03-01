@@ -201,4 +201,4 @@ def get_recent_intakes(limit: int = 50) -> list:
         return items
     except ClientError as e:
         logger.error(f"DynamoDB scan failed: {e}")
-        return []   
+        return []

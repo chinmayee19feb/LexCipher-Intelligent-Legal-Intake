@@ -79,8 +79,8 @@ jobs:
               Stage=prod \
               AnthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }} \
               ClioAccessToken=${{ secrets.CLIO_ACCESS_TOKEN }} \
-              SesFromEmail=intake@richardsandlaw.com \
-              AttorneyEmail=andrew@richardsandlaw.com
+              SesFromEmail=ch.pradhan606@gmail.com \
+              AttorneyEmail=lexcipher.submission@gmail.com
 
       # ── 9. Get stack outputs ─────────────────────────────────────────────────
       - name: Get deployment outputs

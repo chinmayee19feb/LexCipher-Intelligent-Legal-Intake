@@ -25,12 +25,12 @@ Parameters:
 
   SesFromEmail:
     Type: String
-    Default: intake@richardsandlaw.com
+    Default: ch.pradhan606@gmail.com
     Description: Verified SES sender email address
 
   AttorneyEmail:
     Type: String
-    Default: andrew@richardsandlaw.com
+    Default: lexcipher.submission@gmail.com
     Description: Attorney alert email address
 
 # ── Globals ───────────────────────────────────────────────────────────────────

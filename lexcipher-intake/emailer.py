@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 # ── SES setup ─────────────────────────────────────────────────────────────
 ses            = boto3.client("ses", region_name=os.environ.get("AWS_REGION", "us-east-1"))
-FROM_EMAIL     = os.environ.get("FROM_EMAIL",     "intake@richardsandlaw.com")
-ATTORNEY_EMAIL = os.environ.get("ATTORNEY_EMAIL", "andrew@richardsandlaw.com")
+FROM_EMAIL     = os.environ.get("FROM_EMAIL",     "ch.pradhan606@gmail.com")
+ATTORNEY_EMAIL = os.environ.get("ATTORNEY_EMAIL", "lexcipher.submission@gmail.com")
 PORTAL_BASE_URL = os.environ.get("PORTAL_BASE_URL", "https://richardsandlaw.com/portal")
 
 # Urgency badge colors for attorney alert email
