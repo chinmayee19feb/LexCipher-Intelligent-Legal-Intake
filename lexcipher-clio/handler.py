@@ -114,7 +114,7 @@ def handler(event, context):
             logger.info(f"Matter updated: {matter_result}")
 
             # Update Matter status → Active
-            _update_matter_status(headers, "Active")
+            _update_matter_status(headers, "Open")
 
             # Create SOL calendar event
             sol_date     = verified_data.get("sol_date") or _calculate_sol(incident_date)
@@ -268,7 +268,7 @@ def _update_matter_custom_fields(headers: dict, field_updates: list) -> dict:
     return r.json()
 
 
-def _update_matter_status(headers: dict, status: str = "Active") -> None:
+def _update_matter_status(headers: dict, status: str = "Open") -> None:
     """Set matter status to Active once case is accepted."""
     payload = {"data": {"status": status}}
     r = requests.patch(
