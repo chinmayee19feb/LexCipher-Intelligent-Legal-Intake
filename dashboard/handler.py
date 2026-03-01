@@ -10,7 +10,7 @@ TABLE     = os.environ.get('DYNAMODB_TABLE', 'lexcipher-intakes')
 CORS = {
     'Access-Control-Allow-Origin':  '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET,PATCH,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,PATCH,DELETE,OPTIONS',
 }
 
 def lambda_handler(event, context):
@@ -103,6 +103,22 @@ def lambda_handler(event, context):
                 ExpressionAttributeValues=attr_values,
             )
             return ok({'intake_id': intake_id, 'status': status})
+
+        # DELETE /intakes/reset — clear all intakes
+        if method == 'DELETE' and '/reset' in path:
+            result = table.scan(ProjectionExpression='intake_id')
+            items = result.get('Items', [])
+            count = 0
+            for item in items:
+                table.delete_item(Key={'intake_id': item['intake_id']})
+                count += 1
+            return ok({'deleted': count})
+
+        # DELETE /intakes/{id} — delete single intake
+        if method == 'DELETE' and '/intakes/' in path and '/reset' not in path:
+            intake_id = path.split('/intakes/')[-1].rstrip('/')
+            table.delete_item(Key={'intake_id': intake_id})
+            return ok({'deleted': intake_id})
 
         return err(404, 'Not found')
 

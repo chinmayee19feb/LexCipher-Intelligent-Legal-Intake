@@ -212,7 +212,7 @@ Resources:
       Handler: handler.lambda_handler
       Description: Returns recent intakes for the operations dashboard
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref IntakeTable
       Events:
         DashboardGet:
@@ -239,6 +239,24 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /intakes/{intake_id}/status
             Method: PATCH
+        ResetDelete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /intakes/reset
+            Method: DELETE
+        ResetOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /intakes/reset
+            Method: OPTIONS
+        IntakeDelete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /intakes/{intake_id}
+            Method: DELETE
         PortalGet:
           Type: Api
           Properties:
