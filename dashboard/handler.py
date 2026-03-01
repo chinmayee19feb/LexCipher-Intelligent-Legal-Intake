@@ -158,6 +158,8 @@ def _reshape(item):
         'reporting_officer':                item.get('reporting_officer'),
         'client_vehicle_make_model':        item.get('client_vehicle') or item.get('client_vehicle_make_model'),
         'client_vehicle_plate':             item.get('client_vehicle_plate'),
+        'client_gender':                    item.get('client_gender'),
+        'client_pronoun':                   item.get('client_pronoun'),
         'client_injuries_noted':            item.get('client_injuries_noted'),
         'opposing_party_name':              item.get('opposing_party_name'),
         'opposing_party_vehicle':           item.get('opposing_party_vehicle'),
@@ -168,7 +170,6 @@ def _reshape(item):
         'charges_filed':                    item.get('charges_filed'),
         'narrative':                        item.get('narrative_summary') or item.get('narrative'),
         'sol_date':                         item.get('sol_date'),
-        'client_pronoun':                   item.get('client_pronoun'),
         'number_injured':                   item.get('number_injured'),
     }
 

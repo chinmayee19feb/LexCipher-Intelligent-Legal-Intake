@@ -509,13 +509,20 @@ function openCase(id) {
         <div class="cl-section-title">Police Report Extraction</div>
         <div class="cl-extract-grid">
           <div class="cl-ext-row"><div class="cl-ext-label">Accident Date</div><div class="cl-ext-val">${ext.accident_date}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Accident Time</div><div class="cl-ext-val">${ext.accident_time||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Report Number</div><div class="cl-ext-val">${ext.police_report_number||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">No. Injured</div><div class="cl-ext-val">${ext.number_injured||'\u2014'}</div></div>
           <div class="cl-ext-row full"><div class="cl-ext-label">Location</div><div class="cl-ext-val">${ext.accident_location||'\u2014'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||ext.client_vehicle||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client Plate</div><div class="cl-ext-val">${ext.client_vehicle_plate||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client Gender</div><div class="cl-ext-val">${ext.client_gender||'\u2014'} ${ext.client_pronoun?'('+ext.client_pronoun+')':''}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Reporting Officer</div><div class="cl-ext-val">${ext.reporting_officer||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Party</div><div class="cl-ext-val">${ext.opposing_party_name||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Vehicle</div><div class="cl-ext-val">${ext.opposing_party_vehicle||'\u2014'}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Insurance</div><div class="cl-ext-val">${ext.opposing_party_insurance_company||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Plate</div><div class="cl-ext-val">${ext.opposing_party_plate||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Insurance</div><div class="cl-ext-val">${ext.opposing_party_insurance_company||ext.opposing_party_insurance||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Fault</div><div class="cl-ext-val">${ext.fault_determination||'\u2014'}</div></div>
+          <div class="cl-ext-row full"><div class="cl-ext-label">Officer Narrative</div><div class="cl-ext-val" style="font-size:12px;line-height:1.5">${ext.narrative||ext.narrative_summary||'\u2014'}</div></div>
           <div class="cl-ext-row full" style="border-color:rgba(192,57,43,.3)"><div class="cl-ext-label" style="color:var(--red)">SOL Deadline</div><div class="cl-ext-val" style="color:var(--red);font-weight:600">${ext.sol_date||'\u2014'}</div></div>
         </div>
       </div>`:''}
