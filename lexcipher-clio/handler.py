@@ -96,38 +96,49 @@ def handler(event, context):
 
         logger.info(f"Clio sync triggered for intake_id={intake_id}")
 
-        # ── 1. Load Clio access token from SSM ────────────────────────────────
-        access_token = _get_access_token()
-        headers      = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type":  "application/json",
-        }
+        # ── 1. Clio API sync (non-fatal — don't block email/DB on Clio errors) ──
+        calendar_id = None
+        clio_success = False
+        try:
+            access_token = _get_access_token()
+            headers      = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type":  "application/json",
+            }
 
-        # ── 2. Update Clio Matter custom fields ───────────────────────────────
-        field_updates = _build_custom_field_updates(verified_data)
-        matter_result = _update_matter_custom_fields(headers, field_updates)
-        logger.info(f"Matter updated: {matter_result}")
+            # Update Clio Matter custom fields
+            field_updates = _build_custom_field_updates(verified_data)
+            matter_result = _update_matter_custom_fields(headers, field_updates)
+            logger.info(f"Matter updated: {matter_result}")
 
-        # ── 3. Update Matter status → Active ──────────────────────────────────
-        _update_matter_status(headers, "Active")
+            # Update Matter status → Active
+            _update_matter_status(headers, "Active")
 
-        # ── 4. Create SOL calendar event ──────────────────────────────────────
-        sol_date     = verified_data.get("sol_date") or _calculate_sol(incident_date)
-        calendar_id  = _create_sol_calendar_event(headers, sol_date, client_name)
-        logger.info(f"Calendar event created: {calendar_id}")
+            # Create SOL calendar event
+            sol_date     = verified_data.get("sol_date") or _calculate_sol(incident_date)
+            calendar_id  = _create_sol_calendar_event(headers, sol_date, client_name)
+            logger.info(f"Calendar event created: {calendar_id}")
+            clio_success = True
 
-        # ── 5. Send personalized client email ─────────────────────────────────
-        booking_link = _get_seasonal_booking_link()
-        _send_retainer_email(
-            client_name    = client_name,
-            client_email   = client_email,
-            verified_data  = verified_data,
-            booking_link   = booking_link,
-            sol_date       = sol_date,
-        )
-        logger.info(f"Retainer email sent to {client_email}")
+        except Exception as clio_err:
+            logger.warning(f"Clio API sync failed (non-fatal): {clio_err}")
+            sol_date = verified_data.get("sol_date") or _calculate_sol(incident_date)
 
-        # ── 6. Mark intake as clio_synced in DynamoDB ─────────────────────────
+        # ── 2. Send personalized client email (always runs) ───────────────────
+        try:
+            booking_link = _get_seasonal_booking_link()
+            _send_retainer_email(
+                client_name    = client_name,
+                client_email   = client_email,
+                verified_data  = verified_data,
+                booking_link   = booking_link,
+                sol_date       = sol_date,
+            )
+            logger.info(f"Retainer email sent to {client_email}")
+        except Exception as email_err:
+            logger.error(f"Retainer email failed: {email_err}")
+
+        # ── 3. Mark intake as synced in DynamoDB (always runs) ────────────────
         _mark_synced(intake_id, calendar_id)
 
         return {
