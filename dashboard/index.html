@@ -853,32 +853,19 @@ function renderDamageSVG(containerId, impact, most, other, label) {
   const impactZones = parse(impact);
   const mostZones = parse(most);
   const otherZones = parse(other);
-  // Zone positions: [x, y, w, h] on a 160x220 viewBox car
-  // Top-down vehicle: front=top, rear=bottom
-  //        4    5    6
-  //   3 [front panel ] 7
-  //   2 [  body      ] 8
-  //   1 [  body      ] 9
-  //  12 [rear panel  ] 10
-  //       11
+  const lbl = (label||'').toLowerCase();
+  const isBike = lbl.includes('bicycle') || lbl.includes('bike');
+  const isPed = lbl.includes('pedestrian') || lbl.includes('on foot');
   const zones = {
-    1:  [4,148,18,40],    // left-rear
-    2:  [4,100,18,48],    // left-mid
-    3:  [4,44,18,56],     // left-front
-    4:  [22,4,40,40],     // front-left
-    5:  [62,4,36,40],     // front-center
-    6:  [98,4,40,40],     // front-right
-    7:  [138,44,18,56],   // right-front
-    8:  [138,100,18,48],  // right-mid
-    9:  [138,148,18,40],  // right-rear
-    10: [98,188,40,28],   // rear-right
-    11: [62,188,36,28],   // rear-center
-    12: [22,188,40,28],   // rear-left
-    13: [42,64,76,104],   // roof/center
+    1:[4,148,18,40], 2:[4,100,18,48], 3:[4,44,18,56],
+    4:[22,4,40,40], 5:[62,4,36,40], 6:[98,4,40,40],
+    7:[138,44,18,56], 8:[138,100,18,48], 9:[138,148,18,40],
+    10:[98,188,40,28], 11:[62,188,36,28], 12:[22,188,40,28],
+    13:[42,64,76,104],
   };
   const getColor = (z) => {
-    if (z===17) return '#7f1d1d'; // demolished
-    if (z===18) return '#ecf0f1'; // no damage
+    if (z===17) return '#7f1d1d';
+    if (z===18) return '#ecf0f1';
     if (impactZones.includes(z)) return '#e74c3c';
     if (mostZones.includes(z)) return '#e67e22';
     if (otherZones.includes(z)) return '#f1c40f';
@@ -891,27 +878,54 @@ function renderDamageSVG(containerId, impact, most, other, label) {
     allZones.filter(z=>z<=13).length>=1?'MINOR':'NO DAMAGE';
   const sevColor = severity==='DEMOLISHED'||severity==='OVERTURNED'?'#e74c3c':severity==='SEVERE'?'#e67e22':severity==='MODERATE'?'#f39c12':'#27ae60';
   let svg = `<svg viewBox="0 0 160 232" width="140" height="200" xmlns="http://www.w3.org/2000/svg">`;
-  // Car outline
-  svg += `<rect x="22" y="4" width="116" height="212" rx="20" ry="20" fill="#f8f9fa" stroke="#cbd5e1" stroke-width="1.5"/>`;
-  // Windshield
-  svg += `<path d="M36,44 L124,44 L132,80 L28,80 Z" fill="rgba(147,197,253,.2)" stroke="#93c5fd" stroke-width=".7"/>`;
-  // Rear window
-  svg += `<path d="M36,188 L124,188 L130,160 L30,160 Z" fill="rgba(147,197,253,.2)" stroke="#93c5fd" stroke-width=".7"/>`;
-  // Wheels
-  svg += `<rect x="6" y="52" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
-  svg += `<rect x="140" y="52" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
-  svg += `<rect x="6" y="148" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
-  svg += `<rect x="140" y="148" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
-  // Damage zones
-  for (let z=1;z<=13;z++) {
-    const [x,y,w,h] = zones[z];
-    const c = getColor(z);
-    const isHit = c!=='#ecf0f1';
-    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${c}" opacity="${isHit?.65:.15}" stroke="${isHit?c:'#cbd5e1'}" stroke-width="${isHit?1.5:.5}"/>`;
-    if (isHit) svg += `<text x="${x+w/2}" y="${y+h/2+4}" text-anchor="middle" font-size="9" font-weight="600" fill="#1a1a1a">${z}</text>`;
+  if (isPed) {
+    // Pedestrian figure
+    svg += `<circle cx="80" cy="40" r="16" fill="#f8f9fa" stroke="#cbd5e1" stroke-width="1.5"/>`;
+    svg += `<circle cx="80" cy="40" r="5" fill="#64748b"/>`;
+    svg += `<line x1="80" y1="56" x2="80" y2="120" stroke="#cbd5e1" stroke-width="8" stroke-linecap="round"/>`;
+    svg += `<line x1="80" y1="75" x2="55" y2="100" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>`;
+    svg += `<line x1="80" y1="75" x2="105" y2="100" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>`;
+    svg += `<line x1="80" y1="120" x2="60" y2="170" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>`;
+    svg += `<line x1="80" y1="120" x2="100" y2="170" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>`;
+    svg += `<text x="80" y="195" text-anchor="middle" font-size="9" fill="#94a3b8" font-weight="500">${label.length>22?label.substring(0,20)+'..':label}</text>`;
+    svg += `<text x="80" y="210" text-anchor="middle" font-size="8" fill="#64748b" font-weight="600">PEDESTRIAN</text>`;
+  } else if (isBike) {
+    // Bicycle top-down view
+    svg += `<ellipse cx="80" cy="50" rx="22" ry="22" fill="#f8f9fa" stroke="#cbd5e1" stroke-width="1.5"/>`;
+    svg += `<ellipse cx="80" cy="170" rx="22" ry="22" fill="#f8f9fa" stroke="#cbd5e1" stroke-width="1.5"/>`;
+    svg += `<line x1="80" y1="72" x2="80" y2="148" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round"/>`;
+    svg += `<line x1="65" y1="110" x2="95" y2="110" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>`;
+    svg += `<circle cx="80" cy="50" r="6" fill="#64748b" opacity=".4"/>`;
+    svg += `<circle cx="80" cy="170" r="6" fill="#64748b" opacity=".4"/>`;
+    // Highlight damage if any
+    allZones.filter(z=>z>=1&&z<=13).forEach(z=>{
+      const c=getColor(z);
+      if(c!=='#ecf0f1'){
+        const angle=(z-1)*(360/13)*Math.PI/180;
+        const cx=80+Math.cos(angle)*35, cy=110+Math.sin(angle)*55;
+        svg+=`<circle cx="${cx}" cy="${cy}" r="10" fill="${c}" opacity=".6" stroke="${c}" stroke-width="1"/>`;
+        svg+=`<text x="${cx}" y="${cy+3}" text-anchor="middle" font-size="7" font-weight="600" fill="#1a1a1a">${z}</text>`;
+      }
+    });
+    svg += `<text x="80" y="207" text-anchor="middle" font-size="9" fill="#94a3b8" font-weight="500">${label.length>22?label.substring(0,20)+'..':label}</text>`;
+  } else {
+    // Standard car
+    svg += `<rect x="22" y="4" width="116" height="212" rx="20" ry="20" fill="#f8f9fa" stroke="#cbd5e1" stroke-width="1.5"/>`;
+    svg += `<path d="M36,44 L124,44 L132,80 L28,80 Z" fill="rgba(147,197,253,.2)" stroke="#93c5fd" stroke-width=".7"/>`;
+    svg += `<path d="M36,188 L124,188 L130,160 L30,160 Z" fill="rgba(147,197,253,.2)" stroke="#93c5fd" stroke-width=".7"/>`;
+    svg += `<rect x="6" y="52" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+    svg += `<rect x="140" y="52" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+    svg += `<rect x="6" y="148" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+    svg += `<rect x="140" y="148" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+    for (let z=1;z<=13;z++) {
+      const [x,y,w,h] = zones[z];
+      const c = getColor(z);
+      const isHit = c!=='#ecf0f1';
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${c}" opacity="${isHit?.65:.15}" stroke="${isHit?c:'#cbd5e1'}" stroke-width="${isHit?1.5:.5}"/>`;
+      if (isHit) svg += `<text x="${x+w/2}" y="${y+h/2+4}" text-anchor="middle" font-size="9" font-weight="600" fill="#1a1a1a">${z}</text>`;
+    }
+    svg += `<text x="80" y="126" text-anchor="middle" font-size="7" fill="#94a3b8" font-weight="500">${label.length>22?label.substring(0,20)+'..':label}</text>`;
   }
-  // Label & severity
-  svg += `<text x="80" y="126" text-anchor="middle" font-size="7" fill="#94a3b8" font-weight="500">${label.length>22?label.substring(0,20)+'..':label}</text>`;
   if (hasDamage) svg += `<rect x="40" y="218" width="80" height="14" rx="7" fill="${sevColor}" opacity=".15"/><text x="80" y="228" text-anchor="middle" font-size="7" font-weight="700" fill="${sevColor}">${severity}</text>`;
   svg += `</svg>`;
   el.innerHTML = svg;
