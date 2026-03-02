@@ -1,229 +1,215 @@
 import os
 import json
+import base64
 import logging
+import cgi
+import io
+
 import boto3
-import anthropic
-from prompt import (
-    CLASSIFICATION_SYSTEM_PROMPT,
-    EXTRACTION_SYSTEM_PROMPT,
-    build_classification_prompt,
-    build_extraction_prompt,
-)
+from botocore.exceptions import ClientError
 
-import re
+from ai_classifier import classify_case, extract_police_report
+from db import save_intake
+from emailer import send_client_confirmation, send_attorney_alert
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+s3          = boto3.client("s3")
+PDF_BUCKET  = os.environ.get("PDF_BUCKET", "lexcipher-police-reports")
+MAX_PDF_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def _extract_json(text: str) -> dict:
-    """
-    Robustly extract JSON from Claude's response.
-    Handles: raw JSON, ```json fences, ```fences, or text before/after JSON.
-    """
-    text = text.strip()
+# ── CORS headers ───────────────────────────────────────────────────────────
+CORS = {
+    "Access-Control-Allow-Origin":  "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+}
 
-    # 1. Try direct parse first
+
+def lambda_handler(event, context):
+    # Handle CORS preflight
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": CORS, "body": ""}
+
+    if event.get("httpMethod") != "POST":
+        return _error(405, "Method not allowed")
+
     try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+        # ── Always JSON — PDF arrives as base64 string ───────────────────
+        body = json.loads(event.get("body") or "{}")
 
-    # 2. Strip markdown code fences: ```json ... ``` or ``` ... ```
-    fenced = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
-    if fenced:
-        try:
-            return json.loads(fenced.group(1))
-        except json.JSONDecodeError:
-            pass
+        client_name    = body.get("client_name",    "").strip()
+        client_email   = body.get("client_email",   "").strip()
+        client_phone   = body.get("client_phone",   "").strip()
+        incident_date  = body.get("incident_date",  "").strip()
+        prior_attorney = bool(body.get("prior_attorney", False))
+        description    = body.get("description",    "").strip()
 
-    # 3. Find first { ... last } in the response
-    start = text.find('{')
-    end = text.rfind('}')
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(text[start:end + 1])
-        except json.JSONDecodeError:
-            pass
+        # Decode PDF if provided as base64
+        pdf_bytes = None
+        pdf_b64   = body.get("police_report_base64", "")
+        if pdf_b64:
+            pdf_bytes = base64.b64decode(pdf_b64)
 
-    raise json.JSONDecodeError("No valid JSON found in response", text, 0)
+        # ── Validate required fields ───────────────────────────────────────
+        missing = [f for f, v in {
+            "client_name":   client_name,
+            "client_email":  client_email,
+            "client_phone":  client_phone,
+            "incident_date": incident_date,
+            "description":   description,
+        }.items() if not v]
 
+        if missing:
+            return _error(400, f"Missing required fields: {', '.join(missing)}")
 
-def _get_api_key() -> str:
-    # First try env var (local/test)
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if key:
-        return key
-    # Load from SSM
-    try:
-        ssm = boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-east-1"))
-        resp = ssm.get_parameter(Name="/lexcipher/anthropic/api_key", WithDecryption=True)
-        key = resp["Parameter"]["Value"]
-        os.environ["ANTHROPIC_API_KEY"] = key  # cache for subsequent calls
-        return key
-    except Exception as e:
-        logger.error(f"Failed to load Anthropic API key from SSM: {e}")
-        raise
+        # ── Upload PDF to S3 ───────────────────────────────────────────────
+        pdf_s3_key        = None
+        police_report     = None
+        has_police_report = False
 
-MODEL  = "claude-haiku-4-5"
-_client = None
+        if pdf_bytes:
+            if len(pdf_bytes) > MAX_PDF_SIZE:
+                return _error(400, "PDF file exceeds 10MB limit")
 
-def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=_get_api_key())
-    return _client
+            # Store in S3
+            safe_name  = client_name.lower().replace(" ", "_")
+            pdf_s3_key = f"police-reports/{incident_date}/{safe_name}_{context.aws_request_id}.pdf"
 
+            try:
+                s3.put_object(
+                    Bucket=PDF_BUCKET,
+                    Key=pdf_s3_key,
+                    Body=pdf_bytes,
+                    ContentType="application/pdf",
+                    ServerSideEncryption="AES256",
+                )
+                logger.info(f"PDF uploaded to s3://{PDF_BUCKET}/{pdf_s3_key}")
+                has_police_report = True
+            except ClientError as e:
+                logger.error(f"S3 upload failed: {e}")
+                # Continue without PDF rather than failing the whole intake
+                pdf_s3_key = None
 
-# ── Case Classification ────────────────────────────────────────────────────
+            # Extract police report data from PDF
+            if has_police_report:
+                pdf_base64    = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+                police_report = extract_police_report(pdf_base64)
 
-def classify_case(client_name: str, description: str, incident_date: str, prior_attorney: bool) -> dict:
-    """
-    Classify a PI case from the client's text description.
-    Returns a dict with case_type, viability_score, urgency, sol_flag,
-    key_facts, recommended_action, client_acknowledgment.
-    """
-    try:
-        response = _get_client().messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=CLASSIFICATION_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": build_classification_prompt(
-                        client_name=client_name,
-                        description=description,
-                        incident_date=incident_date,
-                        prior_attorney=prior_attorney,
-                    ),
-                }
-            ],
+        # ── Classify case ──────────────────────────────────────────────────
+        classification = classify_case(
+            client_name=client_name,
+            description=description,
+            incident_date=incident_date,
+            prior_attorney=prior_attorney,
         )
 
-        raw = response.content[0].text.strip()
-        logger.info(f"Classification raw response: {raw[:500]}")
-        result = _extract_json(raw)
-        _validate_classification(result)
-        logger.info(f"Classification: {result['case_type']} | Score: {result['viability_score']} | Urgency: {result['urgency']}")
-        return result
+        # ── Save to DynamoDB ───────────────────────────────────────────────
+        intake_id, portal_token = save_intake(
+            client_name=client_name,
+            client_email=client_email,
+            client_phone=client_phone,
+            incident_date=incident_date,
+            prior_attorney=prior_attorney,
+            description=description,
+            classification=classification,
+            has_police_report=has_police_report,
+            pdf_s3_key=pdf_s3_key,
+            police_report=police_report,
+        )
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse classification JSON: {e}")
-        return _fallback_classification()
+        # ── Send emails ────────────────────────────────────────────────────
+        send_client_confirmation(
+            client_name=client_name,
+            client_email=client_email,
+            intake_id=intake_id,
+            portal_token=portal_token,
+            acknowledgment=classification.get("client_acknowledgment", ""),
+            case_type=classification.get("case_type", ""),
+            has_police_report=has_police_report,
+        )
+
+        send_attorney_alert(
+            intake_id=intake_id,
+            client_name=client_name,
+            client_email=client_email,
+            client_phone=client_phone,
+            incident_date=incident_date,
+            case_type=classification.get("case_type", ""),
+            viability_score=classification.get("viability_score", 0),
+            urgency=classification.get("urgency", "low"),
+            sol_flag=classification.get("sol_flag", False),
+            key_facts=classification.get("key_facts", []),
+            recommended_action=classification.get("recommended_action", ""),
+            has_police_report=has_police_report,
+            prior_attorney=prior_attorney,
+        )
+
+        logger.info(f"Intake complete: {intake_id} | {classification.get('case_type')} | {classification.get('urgency')}")
+
+        return {
+            "statusCode": 200,
+            "headers": CORS,
+            "body": json.dumps({
+                "intake_id":   intake_id,
+                "case_type":   classification.get("case_type"),
+                "urgency":     classification.get("urgency"),
+                "message":     "Intake received successfully",
+            }),
+        }
+
     except Exception as e:
-        logger.error(f"Classification error: {e}")
-        return _fallback_classification()
+        logger.error(f"Unhandled error: {e}", exc_info=True)
+        return _error(500, "Internal server error")
 
 
-def _validate_classification(result: dict) -> None:
-    """Ensure all required fields are present and valid."""
-    from prompt import VALID_CASE_TYPES
+# ── Multipart parser ───────────────────────────────────────────────────────
 
-    required = ["case_type", "viability_score", "urgency", "sol_flag",
-                "key_facts", "recommended_action", "client_acknowledgment"]
+def _parse_multipart(event: dict, content_type: str) -> tuple[dict, bytes | None]:
+    """
+    Parse a multipart/form-data request from API Gateway.
+    Returns (fields_dict, pdf_bytes_or_None)
+    """
+    body = event.get("body", "")
+    if event.get("isBase64Encoded"):
+        body = base64.b64decode(body)
+    else:
+        body = body.encode("utf-8") if isinstance(body, str) else body
 
-    for field in required:
-        if field not in result:
-            raise ValueError(f"Missing field: {field}")
-
-    if result["case_type"] not in VALID_CASE_TYPES:
-        logger.warning(f"Unknown case type '{result['case_type']}' — defaulting to Out of Scope")
-        result["case_type"] = "Out of Scope"
-
-    if not isinstance(result["viability_score"], (int, float)):
-        result["viability_score"] = 0
-
-    result["viability_score"] = max(0, min(10, int(result["viability_score"])))
-
-    if result["urgency"] not in ("critical", "high", "medium", "low"):
-        result["urgency"] = "medium"
-
-    if not isinstance(result["key_facts"], list):
-        result["key_facts"] = []
-
-
-def _fallback_classification() -> dict:
-    """Safe default when Claude fails to respond correctly."""
-    return {
-        "case_type": "Out of Scope",
-        "viability_score": 0,
-        "urgency": "low",
-        "sol_flag": False,
-        "key_facts": [],
-        "recommended_action": "Manual review required — AI classification failed.",
-        "client_acknowledgment": (
-            "Thank you for reaching out to Richards & Law. "
-            "We have received your inquiry and a member of our team will be in touch shortly."
-        ),
+    # Build a fake environ for cgi.FieldStorage
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "CONTENT_TYPE":   content_type,
+        "CONTENT_LENGTH": str(len(body)),
     }
 
+    fp      = io.BytesIO(body)
+    storage = cgi.FieldStorage(fp=fp, environ=environ, keep_blank_values=True)
 
-# ── Police Report Extraction ───────────────────────────────────────────────
+    fields    = {}
+    pdf_bytes = None
 
-def extract_police_report(pdf_base64: str, media_type: str = "application/pdf", client_name: str = "") -> dict:
-    """
-    Extract structured data from a police report PDF using Claude's vision.
-    pdf_base64: base64-encoded PDF content
-    client_name: the client's name to identify them in the report
-    Returns a dict with accident details, parties, fault, witnesses, etc.
-    """
-    try:
-        response = _get_client().messages.create(
-            model=MODEL,
-            max_tokens=2048,
-            system=EXTRACTION_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": pdf_base64,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": build_extraction_prompt(client_name),
-                        },
-                    ],
-                }
-            ],
-        )
+    for key in storage.keys():
+        item = storage[key]
+        if isinstance(item, list):
+            fields[key] = item[0].value
+        elif hasattr(item, "filename") and item.filename:
+            # This is a file upload
+            if key == "police_report":
+                pdf_bytes = item.file.read()
+        else:
+            fields[key] = item.value
 
-        raw = response.content[0].text.strip()
-        logger.info(f"Extraction raw response: {raw[:500]}")
-        result = _extract_json(raw)
-        logger.info(f"Police report extracted: report# {result.get('police_report_number', 'unknown')}")
-        return result
-
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse extraction JSON: {e}")
-        return _fallback_extraction()
-    except Exception as e:
-        logger.error(f"Extraction error: {e}")
-        return _fallback_extraction()
+    return fields, pdf_bytes
 
 
-def _fallback_extraction() -> dict:
-    """Safe default when PDF extraction fails."""
+# ── Error helper ───────────────────────────────────────────────────────────
+
+def _error(status: int, message: str) -> dict:
     return {
-        "accident_date": None,
-        "accident_time": None,
-        "accident_location": None,
-        "police_report_number": None,
-        "reporting_officer": None,
-        "client_vehicle": None,
-        "client_vehicle_plate": None,
-        "client_injuries_noted": None,
-        "opposing_party_name": None,
-        "opposing_party_vehicle": None,
-        "opposing_party_plate": None,
-        "opposing_party_insurance": None,
-        "fault_determination": None,
-        "witnesses": [],
-        "charges_filed": None,
-        "narrative_summary": "Extraction failed — manual review of PDF required.",
+        "statusCode": status,
+        "headers": CORS,
+        "body": json.dumps({"error": message}),
     }

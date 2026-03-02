@@ -160,11 +160,10 @@ def _fallback_classification() -> dict:
 
 # ── Police Report Extraction ───────────────────────────────────────────────
 
-def extract_police_report(pdf_base64: str, media_type: str = "application/pdf", client_name: str = "") -> dict:
+def extract_police_report(pdf_base64: str, media_type: str = "application/pdf") -> dict:
     """
     Extract structured data from a police report PDF using Claude's vision.
     pdf_base64: base64-encoded PDF content
-    client_name: the client's name to identify them in the report
     Returns a dict with accident details, parties, fault, witnesses, etc.
     """
     try:
@@ -186,7 +185,7 @@ def extract_police_report(pdf_base64: str, media_type: str = "application/pdf", 
                         },
                         {
                             "type": "text",
-                            "text": build_extraction_prompt(client_name),
+                            "text": build_extraction_prompt(),
                         },
                     ],
                 }
