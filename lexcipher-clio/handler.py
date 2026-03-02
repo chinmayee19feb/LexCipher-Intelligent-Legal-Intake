@@ -102,8 +102,9 @@ def handler(event, context):
         intake_id      = body.get("intake_id")
         verified_data  = body.get("verified_data", {})
         client_name    = body.get("client_name", "Valued Client")
-        client_email   = body.get("client_email", AUTOMATION_EMAIL)
+        client_email   = body.get("client_email") or AUTOMATION_EMAIL
         incident_date  = body.get("incident_date", "")
+        logger.info(f"Resolved client_email: {client_email}")
 
         if not intake_id:
             return _error(400, "intake_id is required")
@@ -690,7 +691,7 @@ def _send_retainer_email(
 ) -> None:
     """Send warm personalized email to client with retainer PDF attached."""
 
-    first_name     = client_name.split()[0] if client_name else "Guillermo"
+    first_name     = client_name.split()[0] if client_name else "Valued Client"
     accident_date  = verified_data.get("accident_date", "")
     accident_loc   = verified_data.get("accident_location", "")
     opposing_party = verified_data.get("opposing_party_name", "the other driver")
@@ -698,6 +699,11 @@ def _send_retainer_email(
     narrative      = verified_data.get("narrative", "")
     sol_display    = sol_date or "Date to be confirmed"
     month_name     = datetime.now().strftime("%B")
+
+    # Build dynamic matter title from actual client/opposing names
+    client_last    = client_name.strip().split()[-1] if client_name.strip() else "Client"
+    opposing_last  = opposing_party.strip().split(",")[0].strip().split()[-1] if opposing_party.strip() else "Defendant"
+    matter_title   = f"{client_last} v {opposing_last}"
 
     subject = f"Richards & Law Has Accepted Your Case — Next Steps Inside"
 
@@ -749,7 +755,7 @@ def _send_retainer_email(
 
     <div class="case-box">
       <table>
-        <tr><td>Matter:</td><td><strong>Reyes v Francois</strong></td></tr>
+        <tr><td>Matter:</td><td><strong>{matter_title}</strong></td></tr>
         <tr><td>Incident Date:</td><td>{accident_date}</td></tr>
         <tr><td>Location:</td><td>{accident_loc}</td></tr>
         <tr><td>Opposing Party:</td><td>{opposing_party}</td></tr>
@@ -801,7 +807,7 @@ def _send_retainer_email(
 
     text_body = (
         f"Dear {first_name},\n\n"
-        f"Richards & Law has accepted your case (Reyes v Francois).\n\n"
+        f"Richards & Law has accepted your case ({matter_title}).\n\n"
         f"Incident: {accident_date} at {accident_loc}\n"
         f"Opposing Party: {opposing_party}\n"
         f"Police Report: {report_no}\n\n"
