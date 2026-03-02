@@ -291,8 +291,8 @@ body{font-family:'DM Sans',sans-serif;min-height:100vh}
       </div>
     </div>
     <div class="cl-filters">
-      <div class="cl-filter active" onclick="clFilter('all',this)">All</div>
-      <div class="cl-filter" onclick="clFilter('new',this)">New</div>
+      <div class="cl-filter" onclick="clFilter('all',this)">All</div>
+      <div class="cl-filter active" onclick="clFilter('new',this)">New</div>
       <div class="cl-filter" onclick="clFilter('verified',this)">Verified</div>
       <div class="cl-filter" onclick="clFilter('active',this)">Active</div>
       <div class="cl-filter" onclick="clFilter('declined',this)">Declined</div>
@@ -371,7 +371,7 @@ const API      = window.INTAKES_API_URL || 'https://b1o6dj4cm4.execute-api.us-ea
 const CLIO_API = window.CLIO_API_URL    || 'https://b1o6dj4cm4.execute-api.us-east-1.amazonaws.com/prod/clio';
 
 let ALL = [], currentView = 'classic', advView = 'overview', selectedId = null;
-let clFilter_ = 'all';
+let clFilter_ = 'new';
 
 // -- Role management -----------------------------------------------------------
 let currentRole = 'paralegal';
@@ -972,12 +972,69 @@ function openModal() {
       <div class="v-field"><label>Opposing Ins. Code</label><input id="vf_opposing_insurance_code" value="${ext.opposing_insurance_code||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>SOL Date</label><input id="vf_sol_date" value="${ext.sol_date||''}" onchange="markChanged(this)" style="font-weight:600;color:var(--red)"></div>
       <div class="v-field full"><label>Narrative Summary</label><textarea id="vf_narrative" onchange="markChanged(this)">${ext.narrative||ext.narrative_summary||''}</textarea></div>
-    </div></div>`;
+    </div></div>
+    <div class="v-section"><div class="v-section-title">\uD83D\uDC65 Involved Persons</div>
+      <div id="vf_involved_persons_container">
+        ${(ext.involved_persons||[]).map((p,i)=>`<div class="v-grid" style="margin-bottom:6px;padding:6px 0;${i>0?'border-top:1px solid var(--border)':''}">
+          <div class="v-field"><label>Name</label><input class="vf_ip_name" value="${p.name||''}" onchange="markChanged(this)"></div>
+          <div class="v-field"><label>Vehicle #</label><input class="vf_ip_vehicle" value="${p.vehicle||''}" onchange="markChanged(this)" style="width:60px"></div>
+          <div class="v-field"><label>Age</label><input class="vf_ip_age" value="${p.age||''}" onchange="markChanged(this)" style="width:50px"></div>
+          <div class="v-field"><label>Sex</label><input class="vf_ip_sex" value="${p.sex||''}" onchange="markChanged(this)" style="width:40px"></div>
+        </div>`).join('')}
+        ${!(ext.involved_persons&&ext.involved_persons.length)?'<div style="color:var(--muted);font-size:12px;padding:8px 0">No involved persons data extracted</div>':''}
+      </div>
+      <button type="button" onclick="addInvolvedPerson()" style="margin-top:6px;padding:4px 12px;font-size:11px;background:var(--light);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text)">+ Add Person</button>
+    </div>
+    ${(ext.client_damage_most||ext.opposing_damage_most)?`
+    <div class="v-section"><div class="v-section-title">\uD83D\uDE97 Damage Visual Review</div>
+      <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Client Vehicle</div><div id="modal-dmg-client"></div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Opposing Vehicle</div><div id="modal-dmg-opposing"></div></div>
+      </div>
+      <div class="dmg-legend" style="margin-top:8px">
+        <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#e74c3c"></div>Impact</div>
+        <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#e67e22"></div>Most Damage</div>
+        <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#f1c40f"></div>Other</div>
+      </div>
+    </div>
+    `:''}`;
   document.getElementById('modal-overlay').classList.add('open');
+  // Render damage SVGs in modal
+  setTimeout(()=>{
+    if(document.getElementById('modal-dmg-client')){
+      renderDamageSVG('modal-dmg-client',ext.client_damage_impact||'',ext.client_damage_most||'',ext.client_damage_other||'',(ext.client_vehicle_make_model||ext.client_vehicle||'Client').replace(/"/g,''));
+      renderDamageSVG('modal-dmg-opposing',ext.opposing_damage_impact||'',ext.opposing_damage_most||'',ext.opposing_damage_other||'',(ext.opposing_party_vehicle||'Opposing').replace(/"/g,''));
+    }
+  },0);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 function markChanged(el) { el.classList.add('field-changed'); }
+function addInvolvedPerson() {
+  const container=document.getElementById('vf_involved_persons_container');
+  const row=document.createElement('div');
+  row.className='v-grid';
+  row.style.cssText='margin-bottom:6px;padding:6px 0;border-top:1px solid var(--border)';
+  row.innerHTML=`
+    <div class="v-field"><label>Name</label><input class="vf_ip_name" value="" onchange="markChanged(this)" placeholder="LAST, FIRST"></div>
+    <div class="v-field"><label>Vehicle #</label><input class="vf_ip_vehicle" value="" onchange="markChanged(this)" style="width:60px" placeholder="1,2,P"></div>
+    <div class="v-field"><label>Age</label><input class="vf_ip_age" value="" onchange="markChanged(this)" style="width:50px"></div>
+    <div class="v-field"><label>Sex</label><input class="vf_ip_sex" value="" onchange="markChanged(this)" style="width:40px" placeholder="M/F"></div>`;
+  container.appendChild(row);
+}
+
+function collectInvolvedPersons() {
+  const names=document.querySelectorAll('.vf_ip_name');
+  const vehicles=document.querySelectorAll('.vf_ip_vehicle');
+  const ages=document.querySelectorAll('.vf_ip_age');
+  const sexes=document.querySelectorAll('.vf_ip_sex');
+  const persons=[];
+  for(let i=0;i<names.length;i++){
+    const n=names[i].value.trim();
+    if(n) persons.push({name:n,vehicle:vehicles[i]?.value||'',age:ages[i]?.value||'',sex:sexes[i]?.value||''});
+  }
+  return persons;
+}
 
 async function verifyAndForward() {
   const btn=document.getElementById('approve-btn');
@@ -1021,6 +1078,7 @@ async function verifyAndForward() {
     fault_determination:document.getElementById('vf_fault_determination')?.value,
     sol_date:document.getElementById('vf_sol_date')?.value,
     narrative:document.getElementById('vf_narrative')?.value,
+    involved_persons:collectInvolvedPersons(),
   };
   try {
     await fetch(API+'/'+selectedId+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'verified',verified_data:verified})});
@@ -1042,9 +1100,13 @@ async function acceptCase() {
   showToast('\u2705 Case accepted! Synced to Clio. SOL calendar created. Retainer email sent.','success');
 }
 
-function declineCase() {
+async function declineCase() {
   const c=ALL.find(i=>i.intake_id===selectedId);
-  if(c){ c.status='declined'; renderAll(); openCase(selectedId); }
+  if(!c) return;
+  try {
+    await fetch(API+'/'+selectedId+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'declined'})});
+  } catch(e){ console.warn('Status update',e); }
+  c.status='declined'; renderAll(); openCase(selectedId);
   showToast('Case declined.','error');
 }
 
