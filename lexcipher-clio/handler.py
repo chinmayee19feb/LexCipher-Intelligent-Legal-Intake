@@ -102,8 +102,15 @@ def handler(event, context):
         intake_id      = body.get("intake_id")
         verified_data  = body.get("verified_data", {})
         client_name    = body.get("client_name", "Valued Client")
-        client_email   = body.get("client_email", AUTOMATION_EMAIL)
         incident_date  = body.get("incident_date", "")
+
+        # ── FIX 1: Use `or` so None / "" / missing all fall back correctly ──
+        # Old: client_email = body.get("client_email", AUTOMATION_EMAIL)
+        # .get(key, default) only uses default when key is MISSING.
+        # If dashboard sends null or "", the key exists so .get() returns
+        # None/"" and SES fails. `or` catches all falsy values.
+        client_email   = body.get("client_email") or AUTOMATION_EMAIL
+        logger.info(f"Resolved client_email: {client_email}")
 
         if not intake_id:
             return _error(400, "intake_id is required")
@@ -680,6 +687,14 @@ def _calculate_sol(incident_date: str, years: int = 8) -> str | None:
         return None
 
 
+# ── FIX 2: New helper to build dynamic matter title from actual names ─────
+def _build_matter_title(client_name: str, opposing_name: str) -> str:
+    """Build a dynamic matter title like 'Reyes v Francois' from actual names."""
+    client_last = client_name.strip().split()[-1] if client_name.strip() else "Client"
+    opposing_last = opposing_name.strip().split(",")[0].strip().split()[-1] if opposing_name.strip() else "Defendant"
+    return f"{client_last} v {opposing_last}"
+
+
 def _send_retainer_email(
     client_name:   str,
     client_email:  str,
@@ -690,7 +705,8 @@ def _send_retainer_email(
 ) -> None:
     """Send warm personalized email to client with retainer PDF attached."""
 
-    first_name     = client_name.split()[0] if client_name else "Guillermo"
+    # ── FIX 3a: Was hardcoded to "Guillermo" ──
+    first_name     = client_name.split()[0] if client_name else "Valued Client"
     accident_date  = verified_data.get("accident_date", "")
     accident_loc   = verified_data.get("accident_location", "")
     opposing_party = verified_data.get("opposing_party_name", "the other driver")
@@ -698,6 +714,9 @@ def _send_retainer_email(
     narrative      = verified_data.get("narrative", "")
     sol_display    = sol_date or "Date to be confirmed"
     month_name     = datetime.now().strftime("%B")
+
+    # ── FIX 3b: Build matter title dynamically instead of hardcoding ──
+    matter_title   = _build_matter_title(client_name, opposing_party)
 
     subject = f"Richards & Law Has Accepted Your Case — Next Steps Inside"
 
@@ -749,7 +768,7 @@ def _send_retainer_email(
 
     <div class="case-box">
       <table>
-        <tr><td>Matter:</td><td><strong>Reyes v Francois</strong></td></tr>
+        <tr><td>Matter:</td><td><strong>{matter_title}</strong></td></tr>
         <tr><td>Incident Date:</td><td>{accident_date}</td></tr>
         <tr><td>Location:</td><td>{accident_loc}</td></tr>
         <tr><td>Opposing Party:</td><td>{opposing_party}</td></tr>
@@ -799,9 +818,10 @@ def _send_retainer_email(
 </body>
 </html>"""
 
+    # ── FIX 3c: Was hardcoded "Reyes v Francois" ──
     text_body = (
         f"Dear {first_name},\n\n"
-        f"Richards & Law has accepted your case (Reyes v Francois).\n\n"
+        f"Richards & Law has accepted your case ({matter_title}).\n\n"
         f"Incident: {accident_date} at {accident_loc}\n"
         f"Opposing Party: {opposing_party}\n"
         f"Police Report: {report_no}\n\n"
