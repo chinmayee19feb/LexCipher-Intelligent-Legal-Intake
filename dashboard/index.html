@@ -117,6 +117,15 @@ body{font-family:'DM Sans',sans-serif;min-height:100vh}
 .cl-ext-row.full{grid-column:1/-1}
 .cl-ext-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .cl-ext-val{font-size:13px;color:var(--text)}
+.dmg-section{margin-top:12px;padding:14px;background:var(--white);border:1px solid var(--border);border-radius:8px}
+.dmg-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.dmg-grid{display:flex;gap:24px;justify-content:center;flex-wrap:wrap}
+.dmg-card{text-align:center}
+.dmg-card-label{font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;letter-spacing:.04em}
+.dmg-legend{display:flex;gap:14px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.dmg-legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+.dmg-legend-dot{width:10px;height:10px;border-radius:2px}
+.dmg-type-badge{display:inline-block;padding:3px 10px;background:rgba(27,58,107,.08);border:1px solid rgba(27,58,107,.15);border-radius:12px;font-size:11px;font-weight:500;color:var(--navy);margin-left:auto}
 .cl-timeline{display:flex;flex-direction:column;gap:0}
 .cl-step{display:flex;gap:12px;align-items:flex-start;padding:8px 0}
 .cl-step-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:1.5px solid}
@@ -527,6 +536,31 @@ function openCase(id) {
           <div class="cl-ext-row full"><div class="cl-ext-label">Officer Narrative</div><div class="cl-ext-val" style="font-size:12px;line-height:1.5">${ext.narrative||ext.narrative_summary||'\u2014'}</div></div>
           <div class="cl-ext-row full" style="border-color:rgba(192,57,43,.3)"><div class="cl-ext-label" style="color:var(--red)">SOL Deadline</div><div class="cl-ext-val" style="color:var(--red);font-weight:600">${ext.sol_date||'\u2014'}</div></div>
         </div>
+        ${(ext.client_damage_most||ext.opposing_damage_most||ext.accident_type)?`
+        <div class="dmg-section">
+          <div class="dmg-title">
+            <span>\uD83D\uDE97 Vehicle Damage Analysis</span>
+            ${ext.accident_type?'<span class="dmg-type-badge">'+ext.accident_type+'</span>':''}
+          </div>
+          <div class="dmg-grid">
+            <div class="dmg-card">
+              <div class="dmg-card-label">Client Vehicle</div>
+              <div id="dmg-svg-client-${c.intake_id}"></div>
+            </div>
+            <div class="dmg-card">
+              <div class="dmg-card-label">Opposing Vehicle</div>
+              <div id="dmg-svg-opposing-${c.intake_id}"></div>
+            </div>
+          </div>
+          <div class="dmg-legend">
+            <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#e74c3c"></div>Point of Impact</div>
+            <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#e67e22"></div>Most Damage</div>
+            <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#f1c40f"></div>Other Damage</div>
+            <div class="dmg-legend-item"><div class="dmg-legend-dot" style="background:#ecf0f1"></div>No Damage</div>
+          </div>
+        </div>
+        <div class="dmg-render-trigger" data-cid="${c.intake_id}" data-ci="${ext.client_damage_impact||''}" data-cm="${ext.client_damage_most||''}" data-co="${ext.client_damage_other||''}" data-cl="${(ext.client_vehicle_make_model||ext.client_vehicle||'Client').replace(/"/g,'')}" data-oi="${ext.opposing_damage_impact||''}" data-om="${ext.opposing_damage_most||''}" data-oo="${ext.opposing_damage_other||''}" data-ol="${(ext.opposing_party_vehicle||'Opposing').replace(/"/g,'')}"></div>
+        `:''}
       </div>`:''}
 
       <div class="cl-section">
@@ -554,6 +588,14 @@ function openCase(id) {
       ${c.status==='verified'&&currentRole==='paralegal'?`<div style="padding:12px 14px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:6px;font-size:13px;color:#8b7028;display:flex;align-items:center;gap:8px">\u2705 Verified \u2014 awaiting attorney decision</div>`:''}
       ${c.clio_synced?`<div style="padding:12px 14px;background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:6px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">\u2705 Synced to Clio \u00B7 SOL calendar created \u00B7 Retainer email sent to ${c.client_email}</div>`:''}
     </div>`;
+  // Render damage SVGs after DOM update
+  setTimeout(()=>{
+    document.querySelectorAll('.dmg-render-trigger').forEach(t=>{
+      const cid=t.dataset.cid;
+      renderDamageSVG('dmg-svg-client-'+cid,t.dataset.ci,t.dataset.cm,t.dataset.co,t.dataset.cl);
+      renderDamageSVG('dmg-svg-opposing-'+cid,t.dataset.oi,t.dataset.om,t.dataset.oo,t.dataset.ol);
+    });
+  },0);
 }
 
 function clStep(icon, title, sub, state) {
@@ -780,6 +822,77 @@ function buildDonut() {
 // ======================================================
 // MODAL
 // ======================================================
+function renderDamageSVG(containerId, impact, most, other, label) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const parse = s => (s||'').split(',').map(n=>parseInt(n.trim())).filter(n=>n>=1&&n<=19);
+  const impactZones = parse(impact);
+  const mostZones = parse(most);
+  const otherZones = parse(other);
+  // Zone positions: [x, y, w, h] on a 160x220 viewBox car
+  // Top-down vehicle: front=top, rear=bottom
+  //        4    5    6
+  //   3 [front panel ] 7
+  //   2 [  body      ] 8
+  //   1 [  body      ] 9
+  //  12 [rear panel  ] 10
+  //       11
+  const zones = {
+    1:  [4,148,18,40],    // left-rear
+    2:  [4,100,18,48],    // left-mid
+    3:  [4,44,18,56],     // left-front
+    4:  [22,4,40,40],     // front-left
+    5:  [62,4,36,40],     // front-center
+    6:  [98,4,40,40],     // front-right
+    7:  [138,44,18,56],   // right-front
+    8:  [138,100,18,48],  // right-mid
+    9:  [138,148,18,40],  // right-rear
+    10: [98,188,40,28],   // rear-right
+    11: [62,188,36,28],   // rear-center
+    12: [22,188,40,28],   // rear-left
+    13: [42,64,76,104],   // roof/center
+  };
+  const getColor = (z) => {
+    if (z===17) return '#7f1d1d'; // demolished
+    if (z===18) return '#ecf0f1'; // no damage
+    if (impactZones.includes(z)) return '#e74c3c';
+    if (mostZones.includes(z)) return '#e67e22';
+    if (otherZones.includes(z)) return '#f1c40f';
+    return '#ecf0f1';
+  };
+  const allZones = [...new Set([...impactZones,...mostZones,...otherZones])];
+  const hasDamage = allZones.filter(z=>z>=1&&z<=17).length>0;
+  const severity = allZones.includes(17)?'DEMOLISHED':allZones.includes(16)?'OVERTURNED':
+    allZones.filter(z=>z<=13).length>=5?'SEVERE':allZones.filter(z=>z<=13).length>=3?'MODERATE':
+    allZones.filter(z=>z<=13).length>=1?'MINOR':'NO DAMAGE';
+  const sevColor = severity==='DEMOLISHED'||severity==='OVERTURNED'?'#e74c3c':severity==='SEVERE'?'#e67e22':severity==='MODERATE'?'#f39c12':'#27ae60';
+  let svg = `<svg viewBox="0 0 160 232" width="140" height="200" xmlns="http://www.w3.org/2000/svg">`;
+  // Car outline
+  svg += `<rect x="22" y="4" width="116" height="212" rx="20" ry="20" fill="#f8f9fa" stroke="#cbd5e1" stroke-width="1.5"/>`;
+  // Windshield
+  svg += `<path d="M36,44 L124,44 L132,80 L28,80 Z" fill="rgba(147,197,253,.2)" stroke="#93c5fd" stroke-width=".7"/>`;
+  // Rear window
+  svg += `<path d="M36,188 L124,188 L130,160 L30,160 Z" fill="rgba(147,197,253,.2)" stroke="#93c5fd" stroke-width=".7"/>`;
+  // Wheels
+  svg += `<rect x="6" y="52" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+  svg += `<rect x="140" y="52" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+  svg += `<rect x="6" y="148" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+  svg += `<rect x="140" y="148" width="14" height="36" rx="4" fill="#374151" opacity=".7"/>`;
+  // Damage zones
+  for (let z=1;z<=13;z++) {
+    const [x,y,w,h] = zones[z];
+    const c = getColor(z);
+    const isHit = c!=='#ecf0f1';
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${c}" opacity="${isHit?.65:.15}" stroke="${isHit?c:'#cbd5e1'}" stroke-width="${isHit?1.5:.5}"/>`;
+    if (isHit) svg += `<text x="${x+w/2}" y="${y+h/2+4}" text-anchor="middle" font-size="9" font-weight="600" fill="#1a1a1a">${z}</text>`;
+  }
+  // Label & severity
+  svg += `<text x="80" y="126" text-anchor="middle" font-size="7" fill="#94a3b8" font-weight="500">${label.length>22?label.substring(0,20)+'..':label}</text>`;
+  if (hasDamage) svg += `<rect x="40" y="218" width="80" height="14" rx="7" fill="${sevColor}" opacity=".15"/><text x="80" y="228" text-anchor="middle" font-size="7" font-weight="700" fill="${sevColor}">${severity}</text>`;
+  svg += `</svg>`;
+  el.innerHTML = svg;
+}
+
 function openModal() {
   const c=ALL.find(i=>i.intake_id===selectedId);
   if(!c) return;
@@ -817,6 +930,15 @@ function openModal() {
       <div class="v-field"><label>Opposing Licensed</label><input id="vf_opposing_party_licensed" value="${ext.opposing_party_licensed||''}" onchange="markChanged(this)" placeholder="Yes/No"></div>
       <div class="v-field"><label>Opposing License ID</label><input id="vf_opposing_party_license_id" value="${ext.opposing_party_license_id||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Fault Determination</label><input id="vf_fault_determination" value="${ext.fault_determination||''}" onchange="markChanged(this)"></div>
+    </div></div>
+    <div class="v-section"><div class="v-section-title">Vehicle Damage Codes</div><div class="v-grid">
+      <div class="v-field"><label>Accident Type</label><input id="vf_accident_type" value="${ext.accident_type||''}" onchange="markChanged(this)" placeholder="e.g. Rear End, Side Swipe"></div>
+      <div class="v-field"><label>Client Impact Zones</label><input id="vf_client_damage_impact" value="${ext.client_damage_impact||''}" onchange="markChanged(this)" placeholder="e.g. 1,2"></div>
+      <div class="v-field"><label>Client Most Damage</label><input id="vf_client_damage_most" value="${ext.client_damage_most||''}" onchange="markChanged(this)" placeholder="e.g. 9,9"></div>
+      <div class="v-field"><label>Client Other Damage</label><input id="vf_client_damage_other" value="${ext.client_damage_other||''}" onchange="markChanged(this)" placeholder="e.g. 8,18,18"></div>
+      <div class="v-field"><label>Opposing Impact Zones</label><input id="vf_opposing_damage_impact" value="${ext.opposing_damage_impact||''}" onchange="markChanged(this)" placeholder="e.g. 1,2"></div>
+      <div class="v-field"><label>Opposing Most Damage</label><input id="vf_opposing_damage_most" value="${ext.opposing_damage_most||''}" onchange="markChanged(this)" placeholder="e.g. 5,5"></div>
+      <div class="v-field"><label>Opposing Other Damage</label><input id="vf_opposing_damage_other" value="${ext.opposing_damage_other||''}" onchange="markChanged(this)" placeholder="e.g. 18,18,18"></div>
     </div></div>
     <div class="v-section"><div class="v-section-title">Insurance &amp; SOL</div><div class="v-grid">
       <div class="v-field"><label>Insurance Company</label><input id="vf_opposing_party_insurance_company" value="${ext.opposing_party_insurance_company||ext.opposing_party_insurance||''}" onchange="markChanged(this)"></div>
@@ -859,6 +981,13 @@ async function verifyAndForward() {
     opposing_party_license_id:document.getElementById('vf_opposing_party_license_id')?.value,
     opposing_party_insurance_company:document.getElementById('vf_opposing_party_insurance_company')?.value,
     opposing_insurance_code:document.getElementById('vf_opposing_insurance_code')?.value,
+    client_damage_impact:document.getElementById('vf_client_damage_impact')?.value,
+    client_damage_most:document.getElementById('vf_client_damage_most')?.value,
+    client_damage_other:document.getElementById('vf_client_damage_other')?.value,
+    opposing_damage_impact:document.getElementById('vf_opposing_damage_impact')?.value,
+    opposing_damage_most:document.getElementById('vf_opposing_damage_most')?.value,
+    opposing_damage_other:document.getElementById('vf_opposing_damage_other')?.value,
+    accident_type:document.getElementById('vf_accident_type')?.value,
     fault_determination:document.getElementById('vf_fault_determination')?.value,
     sol_date:document.getElementById('vf_sol_date')?.value,
     narrative:document.getElementById('vf_narrative')?.value,

@@ -145,6 +145,27 @@ INSURANCE CODE (Section 5 for each vehicle):
   → "Ins. Code" column next to vehicle type — this is a numeric code
   → Extract for BOTH vehicles separately
 
+═══ STEP 8: VEHICLE DAMAGE CODES ═══
+Section 7 contains VEHICLE DAMAGE CODES for each vehicle:
+  → Box 1 - Point of Impact: two zone numbers showing where the vehicle was first hit
+  → Box 2 - Most Damage: two zone numbers showing where the worst damage is
+  → "Enter up to three more Damage Codes": up to 3 additional zone numbers
+
+Zone numbers 1-13 map to positions around the vehicle (top-down view):
+  Zones 4,5,6 = FRONT (left, center, right)
+  Zones 3,2,1 = LEFT SIDE (front to rear)  
+  Zones 7,8,9 = RIGHT SIDE (front to rear)
+  Zones 12,11,10 = REAR (left, center, right)
+  Zone 13 = ROOF/CENTER
+  Special: 14=Undercarriage, 15=Trailer, 16=Overturned, 17=Demolished, 18=No Damage, 19=Other
+
+ACCIDENT TYPE — in the accident diagram area (right side of Section 7):
+  → A circled diagram or text label like "REAR END", "SIDE SWIPE (SAME DIR)", "LEFT TURN", "RIGHT ANGLE", "HEAD ON", etc.
+  → Also check the "DIAGRAM ATTACHED ON SUBSEQUENT PAGE" area for the type label
+
+Extract ALL zone numbers as comma-separated strings. If a box is blank, use null.
+For bicyclists/pedestrians: damage codes apply only to the vehicle, not the person.
+
 ═══ RESPONSE FORMAT ═══
 Extract into valid JSON only. No explanation, no markdown, no extra text.
 
@@ -165,6 +186,9 @@ Extract into valid JSON only. No explanation, no markdown, no extra text.
   "client_license_id": "<CLIENT license ID number from Section 2, or null>",
   "client_insurance_code": "<CLIENT Ins. Code from Section 5, or null>",
   "client_injuries_noted": "<injuries from officer notes or injured persons table for CLIENT>",
+  "client_damage_impact": "<Point of Impact zone numbers as comma-separated string, or null>",
+  "client_damage_most": "<Most Damage zone numbers as comma-separated string>",
+  "client_damage_other": "<Additional damage zone numbers as comma-separated string, or null>",
   "opposing_party_name": "<OPPOSING full name — EXACTLY as printed, LAST, FIRST format>",
   "opposing_party_vehicle": "<OPPOSING vehicle: year, make, type>",
   "opposing_party_plate": "<OPPOSING plate from Section 5>",
@@ -174,6 +198,10 @@ Extract into valid JSON only. No explanation, no markdown, no extra text.
   "opposing_party_license_id": "<OPPOSING license ID number from Section 2>",
   "opposing_party_insurance": "<insurance company name if visible, or null>",
   "opposing_insurance_code": "<OPPOSING Ins. Code from Section 5, or null>",
+  "opposing_damage_impact": "<Point of Impact zone numbers as comma-separated string, or null>",
+  "opposing_damage_most": "<Most Damage zone numbers as comma-separated string>",
+  "opposing_damage_other": "<Additional damage zone numbers as comma-separated string, or null>",
+  "accident_type": "<type from diagram: Rear End, Side Swipe (Same Dir), Left Turn, Right Angle, Right Turn, Head On, Side Swipe (Opposite)>",
   "fault_determination": "<who was at fault based on officer notes>",
   "witnesses": ["<witness names if any, or empty array>"],
   "charges_filed": "<any tickets/violations noted, or null>",
