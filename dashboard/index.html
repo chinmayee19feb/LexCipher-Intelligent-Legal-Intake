@@ -518,6 +518,8 @@ function openCase(id) {
           <div class="cl-ext-row"><div class="cl-ext-label">Report Number</div><div class="cl-ext-val">${ext.police_report_number||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">No. Injured</div><div class="cl-ext-val">${ext.number_injured||'\u2014'}</div></div>
           <div class="cl-ext-row full"><div class="cl-ext-label">Location</div><div class="cl-ext-val">${ext.accident_location||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Borough</div><div class="cl-ext-val">${ext.accident_borough||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">GPS</div><div class="cl-ext-val">${ext.accident_latitude&&ext.accident_longitude?'<a href="https://www.google.com/maps?q='+ext.accident_latitude+','+ext.accident_longitude+'" target="_blank" style="color:var(--navy);text-decoration:underline;font-weight:500">\uD83D\uDCCD View on Map</a> <span style="font-size:11px;color:var(--muted)">('+ext.accident_latitude+', '+ext.accident_longitude+')</span>':'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client Vehicle</div><div class="cl-ext-val">${ext.client_vehicle_make_model||ext.client_vehicle||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client Plate</div><div class="cl-ext-val">${ext.client_vehicle_plate||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client Gender</div><div class="cl-ext-val">${ext.client_gender||'\u2014'} ${ext.client_pronoun?'('+ext.client_pronoun+')':''}</div></div>
@@ -562,6 +564,28 @@ function openCase(id) {
         <div class="dmg-render-trigger" data-cid="${c.intake_id}" data-ci="${ext.client_damage_impact||''}" data-cm="${ext.client_damage_most||''}" data-co="${ext.client_damage_other||''}" data-cl="${(ext.client_vehicle_make_model||ext.client_vehicle||'Client').replace(/"/g,'')}" data-oi="${ext.opposing_damage_impact||''}" data-om="${ext.opposing_damage_most||''}" data-oo="${ext.opposing_damage_other||''}" data-ol="${(ext.opposing_party_vehicle||'Opposing').replace(/"/g,'')}"></div>
         `:''}
       </div>`:''}
+
+      ${(ext.involved_persons&&ext.involved_persons.length)?`
+      <div class="cl-section">
+        <div class="cl-section-title">\uD83D\uDC65 Involved Persons (${ext.involved_persons.length})</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:var(--light);border-bottom:2px solid var(--border)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Name</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Vehicle</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Age</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Sex</th>
+            </tr></thead>
+            <tbody>${ext.involved_persons.map((p,i)=>`<tr style="border-bottom:1px solid var(--border);${i===0?'background:rgba(27,58,107,.04);font-weight:500':''}">
+              <td style="padding:7px 10px">${p.name||'\u2014'}</td>
+              <td style="padding:7px 10px;text-align:center">${p.vehicle||'\u2014'}</td>
+              <td style="padding:7px 10px;text-align:center">${p.age||'\u2014'}</td>
+              <td style="padding:7px 10px;text-align:center">${p.sex||'\u2014'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+      `:''}
 
       <div class="cl-section">
         <div class="cl-section-title">Workflow Status</div>
@@ -908,6 +932,9 @@ function openModal() {
       <div class="v-field"><label>Police Report #</label><input id="vf_police_report_number" value="${ext.police_report_number||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>No. Injured</label><input id="vf_number_injured" value="${ext.number_injured||''}" onchange="markChanged(this)"></div>
       <div class="v-field full"><label>Accident Location</label><input id="vf_accident_location" value="${ext.accident_location||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Borough</label><input id="vf_accident_borough" value="${ext.accident_borough||''}" onchange="markChanged(this)" placeholder="e.g. QUEENS, KINGS"></div>
+      <div class="v-field"><label>GPS Latitude</label><input id="vf_accident_latitude" value="${ext.accident_latitude||''}" onchange="markChanged(this)" placeholder="e.g. 40.73261"></div>
+      <div class="v-field"><label>GPS Longitude</label><input id="vf_accident_longitude" value="${ext.accident_longitude||''}" onchange="markChanged(this)" placeholder="e.g. -73.8686"></div>
       <div class="v-field full"><label>Reporting Officer</label><input id="vf_reporting_officer" value="${ext.reporting_officer||''}" onchange="markChanged(this)"></div>
     </div></div>
     <div class="v-section"><div class="v-section-title">Client Details</div><div class="v-grid">
@@ -960,6 +987,9 @@ async function verifyAndForward() {
     accident_date:document.getElementById('vf_accident_date')?.value,
     accident_time:document.getElementById('vf_accident_time')?.value,
     accident_location:document.getElementById('vf_accident_location')?.value,
+    accident_borough:document.getElementById('vf_accident_borough')?.value,
+    accident_latitude:document.getElementById('vf_accident_latitude')?.value,
+    accident_longitude:document.getElementById('vf_accident_longitude')?.value,
     police_report_number:document.getElementById('vf_police_report_number')?.value,
     reporting_officer:document.getElementById('vf_reporting_officer')?.value,
     number_injured:document.getElementById('vf_number_injured')?.value,

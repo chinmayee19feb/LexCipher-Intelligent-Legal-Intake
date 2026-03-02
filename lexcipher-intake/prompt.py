@@ -166,6 +166,24 @@ ACCIDENT TYPE — in the accident diagram area (right side of Section 7):
 Extract ALL zone numbers as comma-separated strings. If a box is blank, use null.
 For bicyclists/pedestrians: damage codes apply only to the vehicle, not the person.
 
+═══ STEP 9: GPS COORDINATES, BOROUGH, AND INVOLVED PERSONS ═══
+GPS COORDINATES — Bottom-left area labeled "Coordinates (if available)":
+  → Latitude/Northing: a decimal number like 40.73261
+  → Longitude/Easting: a negative decimal number like -73.8686
+  → Extract both as strings
+
+BOROUGH — Checkbox row labeled "Place Where Accident Occurred":
+  → One of: BRONX, KINGS (Brooklyn), NEW YORK (Manhattan), QUEENS, RICHMOND (Staten Island)
+  → Read which checkbox is checked
+
+INVOLVED PERSONS TABLE — Bottom section of the report:
+  → Rows labeled A, B, C, D, E, F etc.
+  → Columns: Vehicle# (8), Seat Position (9), Injury Code (10), Age (12), Sex (13), Transport (14-17), Name
+  → Extract ALL rows as an array of objects
+  → Each person: name, vehicle number, age, sex
+  → Include the client AND opposing party AND any passengers/witnesses
+  → For pedestrians: Vehicle column may show "P" instead of a number
+
 ═══ RESPONSE FORMAT ═══
 Extract into valid JSON only. No explanation, no markdown, no extra text.
 
@@ -173,6 +191,9 @@ Extract into valid JSON only. No explanation, no markdown, no extra text.
   "accident_date": "<YYYY-MM-DD>",
   "accident_time": "<HH:MM from MilitaryTime field>",
   "accident_location": "<Road on which accident occurred> at <intersecting street>",
+  "accident_borough": "<BRONX, KINGS, NEW YORK, QUEENS, or RICHMOND — from checkbox>",
+  "accident_latitude": "<latitude decimal number as string, e.g. 40.73261>",
+  "accident_longitude": "<longitude decimal number as string, e.g. -73.8686>",
   "police_report_number": "<MV-YYYY-PPP-NNNNNN from Accident No. field>",
   "reporting_officer": "<rank and full name ONLY from Print Name line — NO Tax ID>",
   "number_injured": "<ONLY from the 'No. Injured' column, NOT 'No. of Vehicles'>",
@@ -202,6 +223,9 @@ Extract into valid JSON only. No explanation, no markdown, no extra text.
   "opposing_damage_most": "<Most Damage zone numbers as comma-separated string>",
   "opposing_damage_other": "<Additional damage zone numbers as comma-separated string, or null>",
   "accident_type": "<type from diagram: Rear End, Side Swipe (Same Dir), Left Turn, Right Angle, Right Turn, Head On, Side Swipe (Opposite)>",
+  "involved_persons": [
+    {"name": "<LAST, FIRST as printed>", "vehicle": "<vehicle number or P for pedestrian>", "age": "<age>", "sex": "<M or F>"}
+  ],
   "fault_determination": "<who was at fault based on officer notes>",
   "witnesses": ["<witness names if any, or empty array>"],
   "charges_filed": "<any tickets/violations noted, or null>",
