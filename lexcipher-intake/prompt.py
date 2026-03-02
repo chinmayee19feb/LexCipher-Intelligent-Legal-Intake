@@ -76,83 +76,105 @@ Your job is to extract key information from a New York Police Accident Report (M
 Look at the HEADER ROW (Section 1) for checkboxes. One of these will be checked:
   ☑ VEHICLE 2     → Standard vehicle-vs-vehicle case
   ☑ BICYCLIST     → Vehicle-vs-bicycle case (the bicyclist is on the RIGHT side of the form)
-  ☑ PEDESTRIAN    → Vehicle-vs-pedestrian case (pedestrian info is in the injured persons table at bottom)
+  ☑ PEDESTRIAN    → Vehicle-vs-pedestrian case (pedestrian info may be in the right side OR the injured persons table at bottom)
   ☑ OTHER PEDESTRIAN → Same as pedestrian
 
 ═══ STEP 2: IDENTIFY CLIENT vs OPPOSING PARTY ═══
 This is a PERSONAL INJURY firm. The CLIENT is the VICTIM (the person who was harmed):
 
 IF ☑ VEHICLE 2 is checked (vehicle-vs-vehicle):
-  → The CLIENT is the person who was STRUCK or rear-ended (read the Officer's Notes to determine)
-  → Usually Vehicle 1 is the client, but CHECK the narrative to confirm
+  → Usually Vehicle 1 (LEFT side) is the client — but CHECK the Officer's Notes narrative to confirm who was the victim
+  → The OPPOSING PARTY is the other driver
 
 IF ☑ BICYCLIST is checked:
-  → The CLIENT is the BICYCLIST (right side of form, Vehicle 2 position)
-  → The OPPOSING PARTY is the Vehicle 1 driver (left side)
+  → The CLIENT is the BICYCLIST (RIGHT side of form, Vehicle 2 position)
+  → The OPPOSING PARTY is the Vehicle 1 driver (LEFT side)
   → Client vehicle = "Bicycle", client plate = null
-  → Client DOB/gender comes from the RIGHT side Section 3
+  → Client DOB/gender/license comes from the RIGHT side of the form
 
 IF ☑ PEDESTRIAN is checked:
-  → The CLIENT is the PEDESTRIAN (found in the injured persons table at bottom, NOT in a vehicle section)
-  → The OPPOSING PARTY is the Vehicle 1 driver (left side)
+  → The CLIENT is the PEDESTRIAN
+  → The OPPOSING PARTY is the Vehicle 1 driver (LEFT side)
   → Client vehicle = "Pedestrian (on foot)", client plate = null
-  → Client DOB/gender comes from the injured persons table (columns: age, sex)
-  → For pedestrian DOB: calculate from age and accident date if exact DOB not in vehicle sections
+  → Client license = "N/A"
 
-═══ STEP 3: READ THE FORM CAREFULLY ═══
-ACCIDENT DATE — Section 1 header: three separate boxes labeled Month | Day | Year
-  → FIRST box = MONTH (1-12), SECOND box = DAY (1-31), THIRD box = YEAR (4 digits)
-  → Example: boxes showing [12] [6] [2018] = December 6, 2018 = 2018-12-06
-  → Example: boxes showing [2] [15] [2019] = February 15, 2019 = 2019-02-15
-  → Example: boxes showing [7] [16] [2020] = July 16, 2020 = 2020-07-16
-  → DO NOT confuse month and day. Month is ALWAYS 1-12.
+═══ STEP 3: READING DATES — THIS IS CRITICAL ═══
+ALL dates on this form use THREE SEPARATE BOXES: [Month] [Day] [Year]
 
-ACCIDENT NUMBER — Top of form, labeled "Accident No." or "Complaint"
+ACCIDENT DATE (Section 1 header row):
+  → The FIRST box is MONTH (always 1-12)
+  → The SECOND box is DAY (1-31)
+  → The THIRD box is YEAR (4 digits)
+  → IMPORTANT: If the first number is > 12, something is wrong — re-read carefully
+  → Convert to YYYY-MM-DD format
+
+DATE OF BIRTH (Section 3 for each driver):
+  → SAME format: [Month] [Day] [Year] in three separate boxes
+  → Read each box independently
+  → The year should make the person a reasonable age (18-90) at the time of the accident
+  → If you calculate an age over 80 or under 16, double-check the year — you likely misread it
+
+═══ STEP 4: NO. INJURED — READ THE CORRECT FIELD ═══
+In Section 1 header row, there are SEPARATE columns side by side:
+  "No. of Vehicles" | "No. Injured" | "No. Killed"
+  → ONLY read the column labeled "No. Injured" — do NOT read "No. of Vehicles"
+  → These are different numbers in different columns
+  → "No. of Vehicles" is often 1 or 2 — do NOT confuse it with injuries
+
+═══ STEP 5: REPORTING OFFICER — READ CORRECTLY ═══
+At the BOTTOM LEFT of the form there are two different officers:
+  1. REPORTING OFFICER: The officer who wrote the report
+     → "Officer's Rank and Signature" line + "Print Name in Full" line
+     → Extract ONLY the rank (e.g., POM, SGT) and the full printed name
+     → Do NOT include the Tax ID number
+  2. REVIEWING OFFICER: Listed to the right, labeled "Reviewing Officer"
+     → This is a DIFFERENT person — do NOT use this name as the reporting officer
+
+═══ STEP 6: ACCIDENT NUMBER ═══
+  → Top of form, labeled "Accident No."
   → Format: MV-YYYY-PPP-NNNNNN (e.g., MV-2018-078-002001)
-  → IGNORE the "INDEX NO." and "NYSCEF DOC. NO." — those are court filing numbers, NOT the police report
+  → IGNORE "INDEX NO." and "NYSCEF DOC. NO." — those are court filing numbers
 
-DRIVER NAMES — Section 2, labeled "Driver Name - exactly as printed on license"
-  → Copy the name EXACTLY as printed: LAST, FIRST format
-  → Do NOT rearrange, transpose, or correct spelling
+═══ STEP 7: LICENSE AND INSURANCE ═══
+LICENSE INFO (Section 2 for each driver):
+  → "License ID Number" field — copy the full number
+  → "Unlicensed" checkbox in Section 3 — if checked, the driver was unlicensed
+  → For bicyclists/pedestrians: license = "N/A"
 
-DATE OF BIRTH — Section 3, three boxes: Month | Day | Year
-  → Same format as accident date: Month first, then Day, then Year
-  → For the CLIENT: read from their side of the form (or injured persons table for pedestrians)
-
-VEHICLE INFO — Section 5
-  → Plate Number, State of Reg, Vehicle Year & Make, Vehicle Type
-  → For bicyclists: Vehicle Type shows "BIKE" — client plate = null
-
-OFFICER INFO — Bottom of form
-  → Officer's Rank, Print Name, Tax ID No.
-  → Reviewing Officer name and date
-
-INJURED PERSONS TABLE — Bottom section with columns:
-  → Row letters (A, B, C...), vehicle number, age, sex, names
-  → For pedestrians: the client's info (age, sex, name) appears here
+INSURANCE CODE (Section 5 for each vehicle):
+  → "Ins. Code" column next to vehicle type — this is a numeric code
+  → Extract for BOTH vehicles separately
 
 ═══ RESPONSE FORMAT ═══
 Extract into valid JSON only. No explanation, no markdown, no extra text.
 
 {
-  "accident_date": "<YYYY-MM-DD — convert Month/Day/Year from Section 1>",
-  "accident_time": "<HH:MM from MilitaryTime field in Section 1>",
+  "accident_date": "<YYYY-MM-DD>",
+  "accident_time": "<HH:MM from MilitaryTime field>",
   "accident_location": "<Road on which accident occurred> at <intersecting street>",
   "police_report_number": "<MV-YYYY-PPP-NNNNNN from Accident No. field>",
-  "reporting_officer": "<officer print name and Tax ID from bottom of report>",
-  "client_vehicle": "<CLIENT's vehicle: year, make, type — or 'Bicycle' or 'Pedestrian (on foot)'>",
-  "client_vehicle_plate": "<CLIENT's plate from Section 5, or null if bicyclist/pedestrian>",
-  "client_dob": "<YYYY-MM-DD — CLIENT's Date of Birth from their Section 3>",
-  "client_age": "<CLIENT's age at time of accident — calculate from DOB and accident date>",
-  "client_gender": "<M or F — CLIENT's sex from their Section 3 or injured persons table>",
+  "reporting_officer": "<rank and full name ONLY from Print Name line — NO Tax ID>",
+  "number_injured": "<ONLY from the 'No. Injured' column, NOT 'No. of Vehicles'>",
+  "client_vehicle": "<CLIENT vehicle: year, make, type — or 'Bicycle' or 'Pedestrian (on foot)'>",
+  "client_vehicle_plate": "<CLIENT plate from Section 5, or null if bicyclist/pedestrian>",
+  "client_dob": "<YYYY-MM-DD — CLIENT Date of Birth, Month/Day/Year boxes>",
+  "client_age": "<CLIENT age at time of accident>",
+  "client_gender": "<M or F — CLIENT sex>",
   "client_pronoun": "<his if M, her if F>",
-  "client_injuries_noted": "<injuries from officer notes or injured persons table for the CLIENT>",
-  "opposing_party_name": "<OPPOSING party full name — EXACTLY as printed, LAST, FIRST format>",
-  "opposing_party_vehicle": "<OPPOSING party vehicle: year, make, type>",
-  "opposing_party_plate": "<OPPOSING party plate from Section 5>",
+  "client_licensed": "<Yes or No or N/A for pedestrian/bicyclist>",
+  "client_license_id": "<CLIENT license ID number from Section 2, or null>",
+  "client_insurance_code": "<CLIENT Ins. Code from Section 5, or null>",
+  "client_injuries_noted": "<injuries from officer notes or injured persons table for CLIENT>",
+  "opposing_party_name": "<OPPOSING full name — EXACTLY as printed, LAST, FIRST format>",
+  "opposing_party_vehicle": "<OPPOSING vehicle: year, make, type>",
+  "opposing_party_plate": "<OPPOSING plate from Section 5>",
+  "opposing_party_dob": "<YYYY-MM-DD — OPPOSING Date of Birth>",
+  "opposing_party_age": "<OPPOSING age at time of accident>",
+  "opposing_party_licensed": "<Yes or No>",
+  "opposing_party_license_id": "<OPPOSING license ID number from Section 2>",
   "opposing_party_insurance": "<insurance company name if visible, or null>",
-  "fault_determination": "<who was at fault based on officer notes — describe briefly>",
-  "number_injured": "<from 'No. Injured' field in Section 1 header>",
+  "opposing_insurance_code": "<OPPOSING Ins. Code from Section 5, or null>",
+  "fault_determination": "<who was at fault based on officer notes>",
   "witnesses": ["<witness names if any, or empty array>"],
   "charges_filed": "<any tickets/violations noted, or null>",
   "narrative_summary": "<1-2 sentence summary from Accident Description/Officer's Notes>",
@@ -161,4 +183,4 @@ Extract into valid JSON only. No explanation, no markdown, no extra text.
 
 
 def build_extraction_prompt() -> str:
-    return "Please extract all key information from this police report. First determine the case type (vehicle-vs-vehicle, vehicle-vs-bicyclist, or vehicle-vs-pedestrian) by checking the header checkboxes, then identify the CLIENT (the victim/injured party) and the OPPOSING PARTY. Respond with JSON only."
+    return "Please extract all key information from this police report. First determine the case type (vehicle-vs-vehicle, vehicle-vs-bicyclist, or vehicle-vs-pedestrian) by checking the header checkboxes, then identify the CLIENT (the victim/injured party) and the OPPOSING PARTY. Pay special attention to: (1) dates are Month/Day/Year in separate boxes, (2) No. Injured is a DIFFERENT column from No. of Vehicles, (3) reporting officer name only without Tax ID. Respond with JSON only."

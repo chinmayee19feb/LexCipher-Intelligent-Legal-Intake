@@ -513,10 +513,15 @@ function openCase(id) {
           <div class="cl-ext-row"><div class="cl-ext-label">Client Plate</div><div class="cl-ext-val">${ext.client_vehicle_plate||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client Gender</div><div class="cl-ext-val">${ext.client_gender||'\u2014'} ${ext.client_pronoun?'('+ext.client_pronoun+')':''}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Client DOB / Age</div><div class="cl-ext-val">${ext.client_dob||'\u2014'}${ext.client_age?' ('+ext.client_age+')':''}</div></div>
-          <div class="cl-ext-row"><div class="cl-ext-label">Reporting Officer</div><div class="cl-ext-val">${ext.reporting_officer||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client License</div><div class="cl-ext-val">${ext.client_licensed||'\u2014'}${ext.client_license_id?' — #'+ext.client_license_id:''}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Client Ins. Code</div><div class="cl-ext-val">${ext.client_insurance_code||'\u2014'}</div></div>
+          <div class="cl-ext-row full"><div class="cl-ext-label">Reporting Officer</div><div class="cl-ext-val">${ext.reporting_officer||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Party</div><div class="cl-ext-val">${ext.opposing_party_name||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Vehicle</div><div class="cl-ext-val">${ext.opposing_party_vehicle||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Opposing Plate</div><div class="cl-ext-val">${ext.opposing_party_plate||'\u2014'}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing DOB / Age</div><div class="cl-ext-val">${ext.opposing_party_dob||'\u2014'}${ext.opposing_party_age?' ('+ext.opposing_party_age+')':''}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing License</div><div class="cl-ext-val">${ext.opposing_party_licensed||'\u2014'}${ext.opposing_party_license_id?' — #'+ext.opposing_party_license_id:''}</div></div>
+          <div class="cl-ext-row"><div class="cl-ext-label">Opposing Ins. Code</div><div class="cl-ext-val">${ext.opposing_insurance_code||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Insurance</div><div class="cl-ext-val">${ext.opposing_party_insurance_company||ext.opposing_party_insurance||'\u2014'}</div></div>
           <div class="cl-ext-row"><div class="cl-ext-label">Fault</div><div class="cl-ext-val">${ext.fault_determination||'\u2014'}</div></div>
           <div class="cl-ext-row full"><div class="cl-ext-label">Officer Narrative</div><div class="cl-ext-val" style="font-size:12px;line-height:1.5">${ext.narrative||ext.narrative_summary||'\u2014'}</div></div>
@@ -790,7 +795,7 @@ function openModal() {
       <div class="v-field"><label>Police Report #</label><input id="vf_police_report_number" value="${ext.police_report_number||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>No. Injured</label><input id="vf_number_injured" value="${ext.number_injured||''}" onchange="markChanged(this)"></div>
       <div class="v-field full"><label>Accident Location</label><input id="vf_accident_location" value="${ext.accident_location||''}" onchange="markChanged(this)"></div>
-      <div class="v-field"><label>Reporting Officer</label><input id="vf_reporting_officer" value="${ext.reporting_officer||''}" onchange="markChanged(this)"></div>
+      <div class="v-field full"><label>Reporting Officer</label><input id="vf_reporting_officer" value="${ext.reporting_officer||''}" onchange="markChanged(this)"></div>
     </div></div>
     <div class="v-section"><div class="v-section-title">Client Details</div><div class="v-grid">
       <div class="v-field"><label>Client Vehicle</label><input id="vf_client_vehicle_make_model" value="${ext.client_vehicle_make_model||ext.client_vehicle||''}" onchange="markChanged(this)"></div>
@@ -799,15 +804,23 @@ function openModal() {
       <div class="v-field"><label>Client Age</label><input id="vf_client_age" value="${ext.client_age||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Client Gender</label><input id="vf_client_gender" value="${ext.client_gender||''}" onchange="markChanged(this)" placeholder="M or F"></div>
       <div class="v-field"><label>Client Pronoun</label><input id="vf_client_pronoun" value="${ext.client_pronoun||''}" onchange="markChanged(this)" placeholder="his or her"></div>
+      <div class="v-field"><label>Licensed</label><input id="vf_client_licensed" value="${ext.client_licensed||''}" onchange="markChanged(this)" placeholder="Yes/No/N/A"></div>
+      <div class="v-field"><label>License ID</label><input id="vf_client_license_id" value="${ext.client_license_id||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Client Ins. Code</label><input id="vf_client_insurance_code" value="${ext.client_insurance_code||''}" onchange="markChanged(this)"></div>
     </div></div>
     <div class="v-section"><div class="v-section-title">Opposing Party</div><div class="v-grid">
       <div class="v-field"><label>Opposing Party Name</label><input id="vf_opposing_party_name" value="${ext.opposing_party_name||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Opposing Vehicle</label><input id="vf_opposing_party_vehicle" value="${ext.opposing_party_vehicle||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Opposing Plate</label><input id="vf_opposing_party_plate" value="${ext.opposing_party_plate||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Opposing DOB</label><input id="vf_opposing_party_dob" value="${ext.opposing_party_dob||''}" onchange="markChanged(this)" placeholder="YYYY-MM-DD"></div>
+      <div class="v-field"><label>Opposing Age</label><input id="vf_opposing_party_age" value="${ext.opposing_party_age||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Opposing Licensed</label><input id="vf_opposing_party_licensed" value="${ext.opposing_party_licensed||''}" onchange="markChanged(this)" placeholder="Yes/No"></div>
+      <div class="v-field"><label>Opposing License ID</label><input id="vf_opposing_party_license_id" value="${ext.opposing_party_license_id||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>Fault Determination</label><input id="vf_fault_determination" value="${ext.fault_determination||''}" onchange="markChanged(this)"></div>
     </div></div>
     <div class="v-section"><div class="v-section-title">Insurance &amp; SOL</div><div class="v-grid">
       <div class="v-field"><label>Insurance Company</label><input id="vf_opposing_party_insurance_company" value="${ext.opposing_party_insurance_company||ext.opposing_party_insurance||''}" onchange="markChanged(this)"></div>
+      <div class="v-field"><label>Opposing Ins. Code</label><input id="vf_opposing_insurance_code" value="${ext.opposing_insurance_code||''}" onchange="markChanged(this)"></div>
       <div class="v-field"><label>SOL Date</label><input id="vf_sol_date" value="${ext.sol_date||''}" onchange="markChanged(this)" style="font-weight:600;color:var(--red)"></div>
       <div class="v-field full"><label>Narrative Summary</label><textarea id="vf_narrative" onchange="markChanged(this)">${ext.narrative||ext.narrative_summary||''}</textarea></div>
     </div></div>`;
@@ -834,10 +847,18 @@ async function verifyAndForward() {
     client_age:document.getElementById('vf_client_age')?.value,
     client_gender:document.getElementById('vf_client_gender')?.value,
     client_pronoun:document.getElementById('vf_client_pronoun')?.value,
+    client_licensed:document.getElementById('vf_client_licensed')?.value,
+    client_license_id:document.getElementById('vf_client_license_id')?.value,
+    client_insurance_code:document.getElementById('vf_client_insurance_code')?.value,
     opposing_party_name:document.getElementById('vf_opposing_party_name')?.value,
     opposing_party_vehicle:document.getElementById('vf_opposing_party_vehicle')?.value,
     opposing_party_plate:document.getElementById('vf_opposing_party_plate')?.value,
+    opposing_party_dob:document.getElementById('vf_opposing_party_dob')?.value,
+    opposing_party_age:document.getElementById('vf_opposing_party_age')?.value,
+    opposing_party_licensed:document.getElementById('vf_opposing_party_licensed')?.value,
+    opposing_party_license_id:document.getElementById('vf_opposing_party_license_id')?.value,
     opposing_party_insurance_company:document.getElementById('vf_opposing_party_insurance_company')?.value,
+    opposing_insurance_code:document.getElementById('vf_opposing_insurance_code')?.value,
     fault_determination:document.getElementById('vf_fault_determination')?.value,
     sol_date:document.getElementById('vf_sol_date')?.value,
     narrative:document.getElementById('vf_narrative')?.value,
