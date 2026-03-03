@@ -379,6 +379,5 @@ Built into the AI classification prompt:
 
 ---
 
-## 📝 License
 
-Proprietary — Richards & Law. All rights reserved.
+
