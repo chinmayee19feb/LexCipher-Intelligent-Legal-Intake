@@ -1,15 +1,34 @@
 import os
 import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import boto3
-from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 
-# ── SES setup ─────────────────────────────────────────────────────────────
-ses            = boto3.client("ses", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+# ── Gmail SMTP setup ─────────────────────────────────────────────────────
+ssm            = boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-east-1"))
 FROM_EMAIL     = os.environ.get("FROM_EMAIL",     "ch.pradhan606@gmail.com")
 ATTORNEY_EMAIL = os.environ.get("ATTORNEY_EMAIL", "lexcipher.submission@gmail.com")
 PORTAL_BASE_URL = os.environ.get("PORTAL_BASE_URL", "https://d1kxxuu61azwve.cloudfront.net/portal/index.html")
+
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+
+def _get_gmail_app_password() -> str:
+    """Fetch Gmail App Password from SSM Parameter Store."""
+    try:
+        resp = ssm.get_parameter(
+            Name="/lexcipher/gmail/app_password",
+            WithDecryption=True,
+        )
+        return resp["Parameter"]["Value"]
+    except Exception:
+        pw = os.environ.get("GMAIL_APP_PASSWORD", "")
+        if not pw:
+            raise RuntimeError("GMAIL_APP_PASSWORD not found in SSM or environment")
+        return pw
 
 # Urgency badge colors for attorney alert email
 URGENCY_COLORS = {
@@ -318,19 +337,20 @@ Reference ID: {intake_id}
 
 def _send_email(to: str, subject: str, html_body: str, text_body: str) -> bool:
     try:
-        ses.send_email(
-            Source=FROM_EMAIL,
-            Destination={"ToAddresses": [to]},
-            Message={
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {
-                    "Html": {"Data": html_body, "Charset": "UTF-8"},
-                    "Text": {"Data": text_body, "Charset": "UTF-8"},
-                },
-            },
-        )
-        logger.info(f"Email sent to {to}: {subject}")
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = FROM_EMAIL
+        msg["To"]      = to
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        gmail_password = _get_gmail_app_password()
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(FROM_EMAIL, gmail_password)
+            server.sendmail(FROM_EMAIL, [to], msg.as_string())
+        logger.info(f"Email sent via Gmail SMTP to {to}: {subject}")
         return True
-    except ClientError as e:
-        logger.error(f"SES send failed to {to}: {e}")
+    except Exception as e:
+        logger.error(f"Gmail SMTP send failed to {to}: {e}")
         return False

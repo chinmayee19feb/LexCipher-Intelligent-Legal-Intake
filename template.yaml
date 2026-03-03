@@ -149,6 +149,7 @@ Resources:
                 - ssm:GetParameter
               Resource:
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/anthropic/api_key
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/gmail/app_password
       Events:
         IntakePost:
           Type: Api
