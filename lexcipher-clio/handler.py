@@ -2,6 +2,7 @@ import os
 import io
 import json
 import logging
+import smtplib
 import boto3
 import requests
 from datetime import datetime, date
@@ -62,9 +63,26 @@ CORS = {
 }
 
 ssm    = boto3.client("ssm")
-ses    = boto3.client("ses", region_name="us-east-1")
 dynamo = boto3.resource("dynamodb")
 TABLE  = dynamo.Table(os.environ.get("DYNAMODB_TABLE", "lexcipher-intakes"))
+
+# ── Gmail SMTP (replaces SES sandbox) ────────────────────────────────────────
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+
+def _get_gmail_app_password() -> str:
+    """Fetch Gmail App Password from SSM Parameter Store."""
+    try:
+        resp = ssm.get_parameter(
+            Name="/lexcipher/gmail/app_password",
+            WithDecryption=True,
+        )
+        return resp["Parameter"]["Value"]
+    except Exception:
+        pw = os.environ.get("GMAIL_APP_PASSWORD", "")
+        if not pw:
+            raise RuntimeError("GMAIL_APP_PASSWORD not found in SSM or environment")
+        return pw
 
 
 # ── Lambda Entry Point ────────────────────────────────────────────────────────
@@ -836,11 +854,13 @@ def _send_retainer_email(
         att.add_header("Content-Disposition", "attachment", filename=f"Retainer_Agreement_{safe_name}.pdf")
         msg.attach(att)
 
-    ses.send_raw_email(
-        Source       = FROM_EMAIL,
-        Destinations = [client_email],
-        RawMessage   = {"Data": msg.as_string()},
-    )
+    # Send via Gmail SMTP
+    gmail_password = _get_gmail_app_password()
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        server.login(FROM_EMAIL, gmail_password)
+        server.sendmail(FROM_EMAIL, [client_email], msg.as_string())
+    logger.info(f"Email sent via Gmail SMTP to {client_email}")
 
 
 # ── DynamoDB ──────────────────────────────────────────────────────────────────

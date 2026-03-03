@@ -189,6 +189,7 @@ Resources:
               Resource:
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/clio/access_token
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/anthropic/api_key
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lexcipher/gmail/app_password
       Events:
         ClioPost:
           Type: Api
