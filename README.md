@@ -62,24 +62,37 @@ All serverless. All automated. Zero manual data entry.
 
 ## 🔄 Automation Pipeline
 
-```
-Client submits form ──→ AI classifies case ──→ AI extracts police report
-         │                                              │
-         ▼                                              ▼
-  Email client confirmation              Save 40+ extracted fields to DynamoDB
-  Email attorney alert                                  │
-                                                        ▼
-                                          Paralegal verifies on Dashboard
-                                                        │
-                                                        ▼
-                                          Attorney reviews & approves
-                                                        │
-                                                        ▼
-                                    ┌─── Clio Contact created
-                                    ├─── Clio Matter created (11 custom fields)
-                                    ├─── SOL Calendar Event created
-                                    ├─── Retainer PDF generated & uploaded to Clio
-                                    └─── Client receives retainer email + booking link
+```mermaid
+graph TD
+    A[Client visits intake form] --> B[Fills name email phone date description uploads PDF]
+    B --> C[POST /intake - API Gateway]
+    C --> D[lexcipher-intake Lambda]
+    D --> E[Upload PDF to S3]
+    D --> F[Claude AI classifies case]
+    D --> G[Claude AI extracts police report 40+ fields]
+    F --> H[Save to DynamoDB]
+    G --> H
+    H --> I[Email client - confirmation]
+    H --> J[Email attorney - alert with viability score]
+    H --> K[Paralegal opens Dashboard]
+    K --> L[Reviews AI data vs original PDF]
+    L --> M[Corrects mistakes and saves verified data]
+    M --> N[Attorney reviews verified case on Dashboard]
+    N --> O{Attorney Decision}
+    O -->|Decline| P[Status declined - Case closed]
+    O -->|Approve| Q[Clicks Accept and Sync to Clio]
+    Q --> R[POST /clio - API Gateway]
+    R --> S[lexcipher-clio Lambda]
+    S --> T[Create Contact in Clio]
+    T --> U[Create Matter in Clio]
+    U --> V[Fill 11 Custom Fields]
+    V --> W[Set Matter Status to Open]
+    W --> X[Create SOL Calendar Event]
+    X --> Y[Generate Retainer PDF]
+    Y --> Z[Upload PDF to Clio Documents]
+    Z --> AA[SES sends retainer email to client]
+    AA --> AB[Client receives Retainer PDF + case details + Calendly booking link]
+    Z --> AC[DynamoDB updated - clio_synced true]
 ```
 
 ---
