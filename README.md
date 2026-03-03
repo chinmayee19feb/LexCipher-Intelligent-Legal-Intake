@@ -64,37 +64,73 @@ All serverless. All automated. Zero manual data entry.
 
 ```mermaid
 graph TD
-    A[Client visits intake form] --> B[Fills name email phone date description uploads PDF]
-    B --> C[POST /intake - API Gateway]
-    C --> D[lexcipher-intake Lambda]
-    D --> E[Upload PDF to S3]
-    D --> F[Claude AI classifies case]
-    D --> G[Claude AI extracts police report 40+ fields]
-    F --> H[Save to DynamoDB]
-    G --> H
-    H --> I[Email client - confirmation]
-    H --> J[Email attorney - alert with viability score]
-    H --> K[Paralegal opens Dashboard]
-    K --> L[Reviews AI data vs original PDF]
-    L --> M[Corrects mistakes and saves verified data]
-    M --> N[Attorney reviews verified case on Dashboard]
-    N --> O{Attorney Decision}
-    O -->|Decline| P[Status declined - Case closed]
-    O -->|Approve| Q[Clicks Accept and Sync to Clio]
-    Q --> R[POST /clio - API Gateway]
-    R --> S[lexcipher-clio Lambda]
-    S --> T[Create Contact in Clio]
-    T --> U[Create Matter in Clio]
-    U --> V[Fill 11 Custom Fields]
-    V --> W[Set Matter Status to Open]
-    W --> X[Create SOL Calendar Event]
-    X --> Y[Generate Retainer PDF]
-    Y --> Z[Upload PDF to Clio Documents]
-    Z --> AA[SES sends retainer email to client]
-    AA --> AB[Client receives Retainer PDF + case details + Calendly booking link]
-    Z --> AC[DynamoDB updated - clio_synced true]
-```
+    subgraph "STAGE 1 — Client Intake"
+        A["🧑 Client visits intake form<br/>(CloudFront)"] --> B["Fills in: name, email, phone,<br/>incident date, description,<br/>uploads police report PDF"]
+        B --> C["POST /intake<br/>(API Gateway)"]
+    end
 
+    subgraph "STAGE 2 — AI Processing (automatic, ~10 sec)"
+        C --> D["lexcipher-intake Lambda"]
+        D --> E["📄 Upload PDF → S3"]
+        D --> F["🤖 Claude AI — Classify Case<br/>type, viability 0-10, urgency"]
+        D --> G["🤖 Claude AI — Extract Report<br/>40+ fields from MV-104AN"]
+        F --> H["💾 Save to DynamoDB"]
+        G --> H
+        H --> I["📧 Client gets confirmation email"]
+        H --> J["📧 Attorney gets alert email<br/>with viability score,<br/>key facts, urgency level"]
+    end
+
+    subgraph "STAGE 3 — Paralegal Verification"
+        H --> K["👩‍💼 Paralegal opens Dashboard"]
+        K --> L["Reviews AI-extracted data<br/>Views original police report PDF"]
+        L --> M["Edits/corrects any<br/>fields AI got wrong"]
+        M --> N["Saves verified_data<br/>→ DynamoDB"]
+        N --> O["Sets status → 'verified'<br/>PATCH /intakes/id/status"]
+    end
+
+    subgraph "STAGE 4 — Attorney Review & Approval"
+        O --> P["⚖️ Attorney reviews<br/>verified case on Dashboard"]
+        P --> Q["Reviews: case type, viability,<br/>SOL deadline, police report,<br/>paralegal-verified data"]
+        Q --> R{"Attorney Decision"}
+        R -->|"Decline"| S["Status → declined<br/>Case closed"]
+        R -->|"Approve"| T["Clicks 'Accept & Sync to Clio'<br/>POST /clio with verified_data<br/>+ client_email"]
+    end
+
+    subgraph "STAGE 5 — Clio Sync + Retainer (auto after approval)"
+        T --> U["lexcipher-clio Lambda"]
+        U --> V["1. Create Contact in Clio<br/>(client name + email)"]
+        V --> W["2. Create Matter<br/>'LastName v OpposingName - PI'"]
+        W --> X["3. Fill 11 Custom Fields<br/>(accident data, vehicles, etc.)"]
+        X --> Y["4. Set Matter → Open"]
+        Y --> Z["5. Create SOL Calendar Event<br/>⚠️ Deadline on Clio calendar"]
+        Z --> AA["6. Generate Retainer PDF<br/>(ReportLab — firm branded)"]
+        AA --> AB["7. Upload Retainer → Clio Docs"]
+        AB --> AC["✅ Mark DynamoDB:<br/>clio_synced = true,<br/>status = active"]
+    end
+
+    subgraph "STAGE 6 — Client Receives Retainer"
+        AB --> AD["📧 SES sends email to<br/>CLIENT EMAIL from intake form"]
+        AD --> AE["🧑 Client receives:<br/>• Retainer agreement PDF<br/>• Case details & SOL warning<br/>• Calendly booking link<br/>• Contingency fee explanation"]
+        AE --> AF["Client books consultation<br/>via Calendly link"]
+    end
+
+    subgraph "BONUS — Client Portal"
+        AC --> AG["🔗 Client can check status<br/>/portal?token=xxx<br/>(read-only, safe fields only)"]
+    end
+
+    style A fill:#1B3A6B,color:#fff
+    style F fill:#7c3aed,color:#fff
+    style G fill:#7c3aed,color:#fff
+    style J fill:#dc2626,color:#fff
+    style K fill:#2563eb,color:#fff
+    style O fill:#2563eb,color:#fff
+    style P fill:#C9A84C,color:#000
+    style Q fill:#C9A84C,color:#000
+    style T fill:#C9A84C,color:#000
+    style AD fill:#16a34a,color:#fff
+    style AE fill:#16a34a,color:#fff
+    style S fill:#dc2626,color:#fff
+```
 ---
 
 ## 📁 Project Structure
