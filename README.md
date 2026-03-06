@@ -30,7 +30,8 @@ All serverless. All automated. Zero manual data entry.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Diagram
+<img width="7623" height="2550" alt="LexCipher drawio" src="https://github.com/user-attachments/assets/54a2ee38-9894-44a4-80e4-84c1d439f641" />
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -376,8 +377,40 @@ Built into the AI classification prompt:
 | IaC | AWS SAM (CloudFormation) |
 | CI/CD | GitHub Actions |
 | PDF Generation | ReportLab 4.1.0 |
-
 ---
 
+## ⚠️Challenges & Lessons Learned 💡
+| Problem                                          | Obstacle                                                                                                                                                                                                     | Solution                                                                                                                                                  | Impact                                                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Retainer email going to wrong recipient**      | `body.get("client_email", AUTOMATION_EMAIL)` only falls back when the key is missing. When the dashboard sent `client_email: null` or `""`, `.get()` returned the falsy value instead of the fallback email. | Changed logic to `body.get("client_email") or AUTOMATION_EMAIL` so Python falls back when the value is `null`, empty string, or missing.                  | Ensures the retainer email always goes to the correct client instead of the automation inbox.                        |
+| **Every client's email said "Reyes v Francois"** | Matter title in the email template was **hardcoded from test data**, causing every client to see the same case name.                                                                                         | Built a dynamic `matter_title` from `client_name` and `opposing_party_name`, extracting last names and formatting as **"{ClientLast} v {OpposingLast}"**. | Emails now show the correct case name for each client, improving professionalism and avoiding confusion.             |
+| **Fallback greeting used "Guillermo"**           | If `client_name` was empty, the greeting defaulted to **"Dear Guillermo"**, a leftover from testing.                                                                                                         | Replaced fallback with **"Valued Client"** when a name is missing.                                                                                        | Prevents embarrassing test artifacts and ensures neutral, professional communication.                                |
+| **AWS SES sandbox blocking client emails**       | SES sandbox only allows sending to **verified email addresses**, so real client emails entered in the intake form were rejected.                                                                             | Requested **SES production access** with a detailed transactional email use case.                                                                         | Identified the root cause of blocked emails and attempted proper AWS escalation.                                     |
+| **SES production access denied**                 | AWS denied production access (common for new accounts), preventing the system from emailing real clients.                                                                                                    | Replaced SES with **Gmail SMTP (`smtplib`)** in both Lambdas and stored the Gmail App Password securely in **SSM Parameter Store**.                       | Email system now works immediately without sandbox restrictions, allowing the system to communicate with real users. |
+| **Confirmation emails still not working**        | Only the **Clio Lambda** was updated to Gmail SMTP; the **Intake Lambda (`emailer.py`)** was still using SES.                                                                                                | Updated `lexcipher-intake/emailer.py` to use Gmail SMTP and added SSM permissions for the Gmail app password in `template.yaml`.                          | Restored the full email pipeline — clients now receive confirmations and attorneys receive alerts.                   |
+
+
+---
+##  🚀 Future Roadmap 🛣️
+
+- Replace Gmail SMTP with Amazon SES production access once approved
+
+- Add OCR support for handwritten police reports using Amazon Textract
+
+- Implement authentication for the dashboard (AWS Cognito / JWT)
+
+- Add CloudWatch monitoring and alerting for Lambda failures
+
+- Support additional police report formats beyond NY MV-104AN
+
+- Add rate limiting and AWS WAF protection on API Gateway
+
+- Introduce Multi-tenancy support so multiple Law Firms can use the platform with isolated data, configurations, and dashboards
+
+---
+## 👩‍💻 Author
+#### Chinmayee Pradhan
+#### Network Engineer | DevOps & AI Engineer
+#### LinkedIn: https://www.linkedin.com/in/chinmayee-pradhan-devops/
 
 
