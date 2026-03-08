@@ -31,9 +31,10 @@ All serverless. All automated. Zero manual data entry.
 ---
 
 ## 🏗️ Architecture Diagram
-<img width="7623" height="2550" alt="LexCipher drawio" src="https://github.com/user-attachments/assets/54a2ee38-9894-44a4-80e4-84c1d439f641" />
+<img width="7656" height="2628" alt="LexCipher drawio" src="https://github.com/user-attachments/assets/4b4e53b0-a1fb-49ee-9177-a87e457b954f" />
 
 ---
+
 
 ## 🔄 Automation Pipeline
 
