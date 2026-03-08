@@ -33,32 +33,6 @@ All serverless. All automated. Zero manual data entry.
 ## 🏗️ Architecture Diagram
 <img width="7623" height="2550" alt="LexCipher drawio" src="https://github.com/user-attachments/assets/54a2ee38-9894-44a4-80e4-84c1d439f641" />
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        CLIENT BROWSER                               │
-│  ┌──────────────┐  ┌──────────────────┐  ┌────────────────────┐    │
-│  │ Intake Form  │  │ Paralegal/Atty   │  │  Client Portal     │    │
-│  │ (CloudFront) │  │ Dashboard        │  │  (read-only)       │    │
-│  └──────┬───────┘  └───────┬──────────┘  └────────┬───────────┘    │
-└─────────┼──────────────────┼──────────────────────┼────────────────┘
-          │ POST /intake     │ GET/PATCH /intakes    │ GET /portal
-          ▼                  ▼                       ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      API GATEWAY (REST)                              │
-│         /intake    /intakes    /intakes/{id}    /clio    /portal     │
-└────┬──────────────────┬────────────────────────────┬────────────────┘
-     ▼                  ▼                            ▼
-┌──────────┐    ┌──────────────┐              ┌──────────┐
-│ Intake   │    │  Dashboard   │              │  Clio    │
-│ Lambda   │    │  Lambda      │              │  Lambda  │
-└────┬─────┘    └──────────────┘              └────┬─────┘
-     │                                             │
-     ├──→ Claude AI (classify + extract)           ├──→ Clio API v4 (contact, matter,
-     ├──→ S3 (store PDF)                           │     custom fields, calendar, docs)
-     ├──→ DynamoDB (save intake)                   ├──→ ReportLab (generate retainer PDF)
-     └──→ SES (client confirm + attorney alert)    └──→ SES (retainer email to client)
-```
-
 ---
 
 ## 🔄 Automation Pipeline
