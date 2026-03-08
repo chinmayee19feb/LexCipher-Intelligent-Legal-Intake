@@ -14,6 +14,16 @@ LexCipher transforms a process that takes **hours of manual paralegal work** int
 
 ---
 
+## ⭐ Key Highlights
+
+- Fully serverless AWS architecture (Lambda, API Gateway, DynamoDB, S3, CloudFront)
+- AI-powered document extraction using **Claude Haiku 4.5**
+- Automated legal workflow from intake → verification → Clio sync
+- Infrastructure deployed with **AWS SAM + GitHub Actions CI/CD**
+- Real-world integrations: **Clio CRM, Calendly, Email automation**
+
+---
+
 ## 🎯 What It Does
 
 A client fills out a web form and uploads a police report. From that moment, LexCipher:
@@ -34,6 +44,66 @@ All serverless. All automated. Zero manual data entry.
 <img width="7656" height="2628" alt="LexCipher drawio" src="https://github.com/user-attachments/assets/4b4e53b0-a1fb-49ee-9177-a87e457b954f" />
 
 ---
+## 🖥️ Application Walkthrough
+### Client Intake Form
+<img width="1881" height="1080" alt="image" src="https://github.com/user-attachments/assets/66b5caca-e067-4329-a147-25b16bea953a" />
+<img width="1873" height="1002" alt="Screenshot 2026-03-08 190141" src="https://github.com/user-attachments/assets/0f1630ce-562c-477a-a83e-ec55fe6d7b74" />
+
+### Client Portal — Case Status Tracking
+<img width="889" height="860" alt="Screenshot 2026-03-08 190953" src="https://github.com/user-attachments/assets/865f3ff1-2f18-4584-bbb7-0b44dd5ba95b" />
+<img width="1752" height="1074" alt="Screenshot 2026-03-08 191059" src="https://github.com/user-attachments/assets/0160ceca-3424-493a-a78a-821410fd54a3" />
+
+---
+### Attorney Receives New Intake Alert
+<img width="1414" height="878" alt="image" src="https://github.com/user-attachments/assets/63cd1331-7aff-41ac-9b4c-f581f7335215" />
+
+---
+### Law Firm Dashboard — Paralegal & Attorney
+<img width="1902" height="1026" alt="image" src="https://github.com/user-attachments/assets/2c10b3c3-d56b-4fe7-b317-a3bf0d1febd1" />
+
+#### LawFirm Dashboard showing : Police Report Extraction showing 40+ fields** from NY MV-104AN
+<img width="1897" height="1016" alt="image" src="https://github.com/user-attachments/assets/b8b81c1d-e0e4-49f6-b3f9-e987059bc389" />
+
+#### LawFirm Dashboard showing : Vehicle Damage Analysis
+<img width="1896" height="1017" alt="image" src="https://github.com/user-attachments/assets/318e0f70-968d-4bc6-a1e5-7919af9a2c0e" />
+
+#### LawFirm Dashboard showing : Workflow Status
+<img width="1902" height="1023" alt="Screenshot 2026-03-08 192517" src="https://github.com/user-attachments/assets/bdbc84a0-da66-4a9d-bd54-a8ef2011751d" />
+
+---
+### Retainer Agreement & Consultation Scheduling Sent to Client Email-ID
+After attorney approval, LexCipher automatically generates a **retainer agreement PDF** and sends it to the client via email.  
+The email explains the **contingency fee agreement** and provides a **Calendly booking link** so the client can schedule their initial consultation.
+<img width="730" height="833" alt="image" src="https://github.com/user-attachments/assets/a02313b1-5175-4f77-946a-d0ff384586a3" />
+<img width="1529" height="791" alt="Screenshot 2026-03-08 191258" src="https://github.com/user-attachments/assets/fcf50a57-e19a-432b-9373-5b0e45ca2e0c" />
+
+#### The system automatically selects the **consultation format based on the season**.
+
+#### Seasonal Consultation Logic
+| Season | Months | Consultation Type | Booking Method |
+|------|------|------|------|
+| **Spring & Summer** | March – August | In-Office Meeting | Client books a physical office consultation via Calendly |
+| **Autumn & Winter** | September – February | Virtual Meeting | Client books a remote consultation (video call) via Calendly |
+
+This ensures consultations remain convenient for clients while accommodating seasonal conditions.
+<img width="1064" height="706" alt="image" src="https://github.com/user-attachments/assets/322c20b2-29a2-4907-aade-28ff92bdf72b" />
+
+
+---
+### Clio CRM Sync
+<img width="1915" height="677" alt="image" src="https://github.com/user-attachments/assets/bc1fea83-dcc4-4b4d-bd8e-7a50375d3f60" />
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## 🔄 Automation Pipeline
