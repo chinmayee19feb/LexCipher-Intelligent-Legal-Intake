@@ -65,7 +65,22 @@ All serverless. All automated. Zero manual data entry.
 <img width="1897" height="1016" alt="image" src="https://github.com/user-attachments/assets/b8b81c1d-e0e4-49f6-b3f9-e987059bc389" />
 
 #### LawFirm Dashboard showing : Vehicle Damage Analysis
+The dashboard visualizes **AI-extracted vehicle impact zones** from the police report to help the attorney quickly understand the accident scenario.
+The system supports multiple accident types automatically detected by the AI extraction pipeline.
+**Supported scenarios**
+
+| Accident Type | Visualization |
+|---|---|
+| Vehicle vs Vehicle | Impact zones mapped on both vehicles |
+| Vehicle vs Bicycle | Bicycle rider with impact points |
+| Vehicle vs Pedestrian | Pedestrian impact visualization |
+
 <img width="1896" height="1017" alt="image" src="https://github.com/user-attachments/assets/318e0f70-968d-4bc6-a1e5-7919af9a2c0e" />
+<img width="1548" height="318" alt="image" src="https://github.com/user-attachments/assets/bf1aad79-c5ce-43d5-a0e9-e01a6c809128" />
+<img width="1547" height="316" alt="image" src="https://github.com/user-attachments/assets/65c54acb-32c1-4571-b047-d02db2cd4327" />
+
+
+
 
 #### LawFirm Dashboard showing : Workflow Status
 <img width="1902" height="1023" alt="Screenshot 2026-03-08 192517" src="https://github.com/user-attachments/assets/bdbc84a0-da66-4a9d-bd54-a8ef2011751d" />
@@ -424,16 +439,16 @@ Built into the AI classification prompt:
 | PDF Generation | ReportLab 4.1.0 |
 ---
 
-## ⚠️Challenges & Lessons Learned 💡
-| Problem                                          | Obstacle                                                                                                                                                                                                     | Solution                                                                                                                                                  | Impact                                                                                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Retainer email going to wrong recipient**      | `body.get("client_email", AUTOMATION_EMAIL)` only falls back when the key is missing. When the dashboard sent `client_email: null` or `""`, `.get()` returned the falsy value instead of the fallback email. | Changed logic to `body.get("client_email") or AUTOMATION_EMAIL` so Python falls back when the value is `null`, empty string, or missing.                  | Ensures the retainer email always goes to the correct client instead of the automation inbox.                        |
-| **Every client's email said "Reyes v Francois"** | Matter title in the email template was **hardcoded from test data**, causing every client to see the same case name.                                                                                         | Built a dynamic `matter_title` from `client_name` and `opposing_party_name`, extracting last names and formatting as **"{ClientLast} v {OpposingLast}"**. | Emails now show the correct case name for each client, improving professionalism and avoiding confusion.             |
-| **Fallback greeting used "Guillermo"**           | If `client_name` was empty, the greeting defaulted to **"Dear Guillermo"**, a leftover from testing.                                                                                                         | Replaced fallback with **"Valued Client"** when a name is missing.                                                                                        | Prevents embarrassing test artifacts and ensures neutral, professional communication.                                |
-| **AWS SES sandbox blocking client emails**       | SES sandbox only allows sending to **verified email addresses**, so real client emails entered in the intake form were rejected.                                                                             | Requested **SES production access** with a detailed transactional email use case.                                                                         | Identified the root cause of blocked emails and attempted proper AWS escalation.                                     |
-| **SES production access denied**                 | AWS denied production access (common for new accounts), preventing the system from emailing real clients.                                                                                                    | Replaced SES with **Gmail SMTP (`smtplib`)** in both Lambdas and stored the Gmail App Password securely in **SSM Parameter Store**.                       | Email system now works immediately without sandbox restrictions, allowing the system to communicate with real users. |
-| **Confirmation emails still not working**        | Only the **Clio Lambda** was updated to Gmail SMTP; the **Intake Lambda (`emailer.py`)** was still using SES.                                                                                                | Updated `lexcipher-intake/emailer.py` to use Gmail SMTP and added SSM permissions for the Gmail app password in `template.yaml`.                          | Restored the full email pipeline — clients now receive confirmations and attorneys receive alerts.                   |
 
+## ⚠️Challenges & Lessons Learned 💡
+
+| Problem | Obstacle | Solution | Impact |
+|--------|----------|----------|--------|
+| **Lambda deployment failure** | Intake Lambda stopped working after deployment due to handler misconfiguration in the CloudFormation/SAM template, causing the API endpoint to fail. | Rolled back to a stable deployment version and introduced stricter deployment controls, avoiding function signature changes and isolating improvements to prompt logic. | Restored the intake pipeline and improved reliability of serverless deployments. |
+| **AI extraction inaccuracies** | AI model produced inconsistent outputs when extracting structured fields from police report PDFs (date swaps, incorrect DOB parsing, field misinterpretation). | Designed a structured multi-step prompt with validation rules tailored to the NY MV-104AN form and iteratively tested across multiple cases. | Improved extraction reliability and reduced incorrect field mappings during automated intake processing. |
+| **Frontend dashboard crash** | Dashboard occasionally crashed due to inline script execution inside a template literal, causing improper rendering and JavaScript errors. | Refactored rendering logic to remove inline script injection and separated DOM updates from execution logic. | Stabilized dashboard rendering and improved reliability of the client-side interface. |
+| **AWS SES sandbox blocking client emails** | SES sandbox mode only allows sending to verified email addresses, so real client emails entered in the intake form were rejected. | Requested SES production access with a detailed transactional email use case description. | Identified the root cause of blocked emails and attempted proper AWS escalation. |
+| **SES production access denied** | AWS denied production access (common for newer accounts with limited history), preventing the system from emailing real clients. | Replaced SES with Gmail SMTP (`smtplib`) and stored the Gmail App Password securely in AWS SSM Parameter Store. | Email system now works immediately without sandbox restrictions, allowing the system to communicate with real users. |
 
 ---
 ##  🚀 Future Roadmap 🛣️
